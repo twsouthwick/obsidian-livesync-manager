@@ -1,13 +1,9 @@
-using Couchbase.Aspire.Client;
 using obsidian_sync_manager.Web.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
-
-// Add Couchbase client integration.
-builder.AddCouchbaseClient("couchbase");
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
