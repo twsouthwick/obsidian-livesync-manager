@@ -12,5 +12,8 @@
     <ProjectReference Include="..\obsidian-sync-manager.Web\obsidian-sync-manager.Web.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Keycloak" Version="*-*" />
+  </ItemGroup>
 
 </Project>

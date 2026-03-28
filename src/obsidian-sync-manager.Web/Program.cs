@@ -22,6 +22,9 @@ builder.Services.AddHttpClient<CouchDbAdminClient>(client =>
 });
 builder.Services.AddHostedService<CouchDbInitializer>();
 
+// Configure generic OIDC authentication.
+builder.Services.AddOidcAuthentication(builder.Configuration);
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -49,6 +52,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.UseAntiforgery();
 
 app.UseOutputCache();
@@ -56,7 +62,10 @@ app.UseOutputCache();
 app.MapStaticAssets();
 
 app.MapRazorComponents<App>()
+    .RequireAuthorization()
     .AddInteractiveServerRenderMode();
+
+app.MapAuthEndpoints();
 
 app.MapDefaultEndpoints();
 

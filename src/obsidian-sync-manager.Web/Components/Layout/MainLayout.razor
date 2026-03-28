@@ -7,7 +7,15 @@
 
     <main>
         <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <AuthorizeView>
+                <Authorized>
+                    <span>Hello, @context.User.FindFirst("preferred_username")?.Value</span>
+                    <form method="post" action="/logout">
+                        <AntiforgeryToken />
+                        <button type="submit" class="nav-link">Logout</button>
+                    </form>
+                </Authorized>
+            </AuthorizeView>
         </div>
 
         <article class="content px-4">

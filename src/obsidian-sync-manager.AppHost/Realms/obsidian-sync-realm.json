@@ -1,0 +1,101 @@
+{
+  "realm": "obsidian-sync",
+  "enabled": true,
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "groups": [
+    {
+      "name": "obsidian-admins"
+    },
+    {
+      "name": "obsidian-users"
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "obsidian-web",
+      "name": "Obsidian Sync Manager",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "rootUrl": "",
+      "baseUrl": "/",
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ],
+      "redirectUris": [
+        "http://localhost:*",
+        "https://localhost:*",
+        "https://webfrontend-obsidian-sync-manager.dev.localhost:*"
+      ],
+      "webOrigins": [
+        "http://localhost:*",
+        "https://localhost:*",
+        "https://webfrontend-obsidian-sync-manager.dev.localhost:*"
+      ],
+      "protocol": "openid-connect",
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:*##https://localhost:*##https://webfrontend-obsidian-sync-manager.dev.localhost:*"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "email": "alice@example.com",
+      "firstName": "Alice",
+      "lastName": "Smith",
+      "enabled": true,
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "alice",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "obsidian-admins",
+        "obsidian-users"
+      ]
+    },
+    {
+      "username": "bob",
+      "email": "bob@example.com",
+      "firstName": "Bob",
+      "lastName": "Jones",
+      "enabled": true,
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "bob",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "obsidian-users"
+      ]
+    }
+  ]
+}

@@ -10,12 +10,19 @@ var couchdb = builder.AddContainer("couchdb", "couchdb", "latest")
     .WithVolume("couchdb-data", "/opt/couchdb/data")
     .WithHttpHealthCheck("/_up");
 
+var keycloak = builder.AddKeycloak("keycloak", 8080)
+    .WithDataVolume()
+    .WithRealmImport("./Realms");
+
 builder.AddProject<Projects.obsidian_sync_manager_Web>("webfrontend")
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health")
     .WaitFor(couchdb)
+    .WaitFor(keycloak)
     .WithEnvironment("COUCHDB_URL", couchdb.GetEndpoint("http"))
     .WithEnvironment("COUCHDB_USERNAME", couchdbUsername)
-    .WithEnvironment("COUCHDB_PASSWORD", couchdbPassword);
+    .WithEnvironment("COUCHDB_PASSWORD", couchdbPassword)
+    .WithEnvironment("OIDC__Authority", ReferenceExpression.Create($"{keycloak.GetEndpoint("https")}/realms/obsidian-sync"))
+    .WithEnvironment("OIDC__ClientId", "obsidian-web");
 
 builder.Build().Run();
