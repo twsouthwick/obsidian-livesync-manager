@@ -1,0 +1,16 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.2.0">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>442364f5-d568-4adc-88fc-2c077df94b06</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\obsidian-sync-manager.ApiService\obsidian-sync-manager.ApiService.csproj" />
+    <ProjectReference Include="..\obsidian-sync-manager.Web\obsidian-sync-manager.Web.csproj" />
+  </ItemGroup>
+
+</Project>
