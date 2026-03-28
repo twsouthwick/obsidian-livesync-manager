@@ -1,12 +1,13 @@
+using Couchbase.Aspire.Hosting;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
-var apiService = builder.AddProject<Projects.obsidian_sync_manager_ApiService>("apiservice")
-    .WithHttpHealthCheck("/health");
+var couchbase = builder.AddCouchbase("couchbase");
 
 builder.AddProject<Projects.obsidian_sync_manager_Web>("webfrontend")
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health")
-    .WithReference(apiService)
-    .WaitFor(apiService);
+    .WithReference(couchbase)
+    .WaitFor(couchbase);
 
 builder.Build().Run();

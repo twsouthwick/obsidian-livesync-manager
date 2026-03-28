@@ -9,8 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\obsidian-sync-manager.ApiService\obsidian-sync-manager.ApiService.csproj" />
     <ProjectReference Include="..\obsidian-sync-manager.Web\obsidian-sync-manager.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Couchbase.Aspire.Hosting" Version="1.0.0-beta.2" />
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,4 @@
 <Solution>
-  <Project Path="src/obsidian-sync-manager.ApiService/obsidian-sync-manager.ApiService.csproj" />
   <Project Path="src/obsidian-sync-manager.AppHost/obsidian-sync-manager.AppHost.csproj" />
   <Project Path="src/obsidian-sync-manager.ServiceDefaults/obsidian-sync-manager.ServiceDefaults.csproj" />
   <Project Path="src/obsidian-sync-manager.Web/obsidian-sync-manager.Web.csproj" />
