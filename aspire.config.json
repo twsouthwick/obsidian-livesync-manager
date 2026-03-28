@@ -1,0 +1,5 @@
+{
+    "appHost": {
+        "path": "src/obsidian-sync-manager.AppHost/obsidian-sync-manager.AppHost.csproj"
+    }
+}
