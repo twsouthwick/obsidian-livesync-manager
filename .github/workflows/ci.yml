@@ -1,0 +1,53 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Install Aspire workload
+        run: dotnet workload install aspire
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test
+        run: dotnet test --no-build -c Release
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      - name: Publish container to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          dotnet publish src/obsidian-sync-manager.Web/obsidian-sync-manager.Web.csproj \
+            -c Release \
+            /t:PublishContainer \
+            -p:ContainerRegistry=${{ env.REGISTRY }} \
+            -p:ContainerImageName=${{ env.REGISTRY }}/${{ github.repository_owner }}/obsidian-sync-manager \
+            -p:ContainerImageTag=${{ github.sha }} \
+            -p:ContainerImageTags='"${{ github.sha }};latest"'
