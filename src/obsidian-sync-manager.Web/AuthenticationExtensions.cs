@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 
 namespace obsidian_sync_manager.Web;
@@ -28,11 +30,19 @@ public static class AuthenticationExtensions
 
             services.AddCascadingAuthenticationState();
 
-            services.AddAuthorization(options =>
-            {
-                options.AddPolicy("Admin", policy => policy.RequireRole("obsidian-admins"));
-                options.AddPolicy("User", policy => policy.RequireRole("obsidian-users", "obsidian-admins"));
-            });
+            services.AddOptions<OidcGroupOptions>()
+                .BindConfiguration("OIDC:Groups")
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
+
+            services.AddAuthorization();
+            services.AddOptions<AuthorizationOptions>()
+                .Configure<IOptions<OidcGroupOptions>>((options, groupOptions) =>
+                {
+                    var groups = groupOptions.Value;
+                    options.AddPolicy("Admin", policy => policy.RequireRole(groups.Admins));
+                    options.AddPolicy("User", policy => policy.RequireRole(groups.Users, groups.Admins));
+                });
 
             return services;
         }

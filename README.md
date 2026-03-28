@@ -76,19 +76,21 @@ On startup, the app automatically initializes CouchDB (single-node setup, CORS f
 |----------|-------------|---------|
 | `OIDC__Authority` | Issuer / authority URL | `https://idp.example.com/realms/obsidian-sync` |
 | `OIDC__ClientId` | OIDC client identifier | `obsidian-web` |
+| `OIDC__Groups__Admins` | Group name for admin access | `obsidian-admins` (default) |
+| `OIDC__Groups__Users` | Group name for user access | `obsidian-users` (default) |
 
 Your OIDC provider must:
 
 - Support the **Authorization Code** flow with a public client (no client secret)
-- Include a `groups` claim in ID tokens containing group names (`obsidian-admins`, `obsidian-users`)
+- Include a `groups` claim in ID tokens containing the configured group names
 - Allow the redirect URIs used by the web frontend
 
 ### Authorization Policies
 
 | Policy | Required Group(s) |
 |--------|-------------------|
-| `Admin` | `obsidian-admins` |
-| `User` | `obsidian-users` or `obsidian-admins` |
+| `Admin` | `OIDC__Groups__Admins` group |
+| `User` | `OIDC__Groups__Users` or `OIDC__Groups__Admins` group |
 
 ---
 
