@@ -40,7 +40,12 @@ public class CouchDbAdminClient(HttpClient httpClient)
 
     public async Task<bool> CreateDatabaseAsync(string name, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.PutAsync($"/{Uri.EscapeDataString(name)}", null, cancellationToken);
+        var escaped = Uri.EscapeDataString(name);
+        var head = await httpClient.SendAsync(new HttpRequestMessage(HttpMethod.Head, $"/{escaped}"), cancellationToken);
+        if (head.IsSuccessStatusCode)
+            return true; // already exists
+
+        var response = await httpClient.PutAsync($"/{escaped}", null, cancellationToken);
         return response.IsSuccessStatusCode;
     }
 
@@ -67,30 +72,53 @@ public class CouchDbAdminClient(HttpClient httpClient)
     {
         var userId = $"org.couchdb.user:{username}";
         var encodedId = Uri.EscapeDataString(userId);
+        var url = $"/_users/{encodedId}";
 
-        // Get _rev if user already exists (needed for update)
-        string? rev = null;
-        var getResponse = await httpClient.GetAsync($"/_users/{encodedId}", cancellationToken);
-        if (getResponse.IsSuccessStatusCode)
+        // Retry on 409 Conflict (concurrent rev update)
+        for (var attempt = 0; attempt < 3; attempt++)
         {
-            using var doc = await JsonDocument.ParseAsync(
-                await getResponse.Content.ReadAsStreamAsync(cancellationToken),
-                cancellationToken: cancellationToken);
-            rev = doc.RootElement.GetProperty("_rev").GetString();
+            // Get _rev if user already exists (needed for update)
+            string? rev = null;
+            var getResponse = await httpClient.GetAsync(url, cancellationToken);
+            if (getResponse.IsSuccessStatusCode)
+            {
+                using var doc = await JsonDocument.ParseAsync(
+                    await getResponse.Content.ReadAsStreamAsync(cancellationToken),
+                    cancellationToken: cancellationToken);
+                rev = doc.RootElement.GetProperty("_rev").GetString();
+            }
+
+            var userDoc = new Dictionary<string, object>
+            {
+                ["_id"] = userId,
+                ["name"] = username,
+                ["password"] = password,
+                ["type"] = "user",
+                ["roles"] = Array.Empty<string>()
+            };
+            if (rev is not null)
+                userDoc["_rev"] = rev;
+
+            var json = JsonSerializer.Serialize(userDoc, JsonOptions);
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var response = await httpClient.PutAsync(url, content, cancellationToken);
+
+            if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.Created)
+                return;
+
+            if (response.StatusCode != System.Net.HttpStatusCode.Conflict)
+                response.EnsureSuccessStatusCode();
         }
 
-        var userDoc = new Dictionary<string, object>
+        // Final attempt — let it throw on failure
+        await PutJsonAsync(url, new Dictionary<string, object>
         {
             ["_id"] = userId,
             ["name"] = username,
             ["password"] = password,
             ["type"] = "user",
             ["roles"] = Array.Empty<string>()
-        };
-        if (rev is not null)
-            userDoc["_rev"] = rev;
-
-        await PutJsonAsync($"/_users/{encodedId}", userDoc, cancellationToken);
+        }, cancellationToken);
     }
 
     public async Task SetDatabaseSecurityAsync(string db, IEnumerable<string> memberNames, CancellationToken cancellationToken = default)
@@ -129,7 +157,7 @@ public class CouchDbAdminClient(HttpClient httpClient)
 
     public async Task CreateRegistryDatabaseAsync(CancellationToken cancellationToken = default)
     {
-        await httpClient.PutAsync($"/{RegistryDb}", null, cancellationToken);
+        await CreateDatabaseAsync(RegistryDb, cancellationToken);
     }
 
     public async Task<WorkspaceRegistryDoc?> GetWorkspaceDocAsync(string workspaceId, CancellationToken cancellationToken = default)
