@@ -39,7 +39,7 @@ else
     <div class="card mt-4">
         <div class="card-body">
             <h5 class="card-title">Members</h5>
-            <MemberList Members="@workspace.Members" OnAdd="HandleAddMember" OnRemove="HandleRemoveMember"
+            <MemberList Security="@workspace.Members" OnAdd="HandleAddMember" OnRemove="HandleRemoveMember"
                         CurrentUsername="@username" />
             @if (memberError is not null)
             {
@@ -84,7 +84,7 @@ else
         await WorkspaceSvc.EnsureCurrentUserAsync(username, sub);
 
         workspace = await WorkspaceSvc.GetAsync(Id);
-        if (workspace is null || !workspace.Members.Contains(username))
+        if (workspace is null || !workspace.Members.IsMember(username))
         {
             found = false;
             return;

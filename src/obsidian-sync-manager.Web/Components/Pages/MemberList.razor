@@ -1,22 +1,28 @@
 @rendermode InteractiveServer
+@using System.Collections.Immutable
+@using Swick.Obsidian.SyncManager.Web.CouchDb
 
-@if (Members.Count > 0)
+@if (AllNames.Count > 0)
 {
     <ul class="list-group mb-3">
-        @foreach (var member in Members)
+        @foreach (var name in AllNames)
         {
             <li class="list-group-item d-flex justify-content-between align-items-center">
                 <span>
                     <span class="bi bi-person me-1" aria-hidden="true"></span>
-                    @member
-                    @if (member == CurrentUsername)
+                    @name
+                    @if (Security.IsAdmin(name))
+                    {
+                        <span class="badge bg-primary ms-1">admin</span>
+                    }
+                    @if (name == CurrentUsername)
                     {
                         <span class="badge bg-secondary ms-1">you</span>
                     }
                 </span>
-                @if (member != CurrentUsername)
+                @if (name != CurrentUsername)
                 {
-                    <button class="btn btn-sm btn-outline-danger" @onclick="() => OnRemove.InvokeAsync(member)">
+                    <button class="btn btn-sm btn-outline-danger" @onclick="() => OnRemove.InvokeAsync(name)">
                         <span class="bi bi-x-lg" aria-hidden="true"></span> Remove
                     </button>
                 }
@@ -34,10 +40,12 @@
 </div>
 
 @code {
-    [Parameter, EditorRequired] public List<string> Members { get; set; } = default!;
+    [Parameter, EditorRequired] public CouchDbSecurityRecord Security { get; set; } = default!;
     [Parameter, EditorRequired] public string CurrentUsername { get; set; } = default!;
     [Parameter] public EventCallback<string> OnAdd { get; set; }
     [Parameter] public EventCallback<string> OnRemove { get; set; }
+
+    private ImmutableList<string> AllNames => Security.Admins.Names.Union(Security.Members.Names).ToImmutableList();
 
     private string? newUsername;
     private bool adding;

@@ -13,7 +13,7 @@
                 <td>
                     <a href="workspaces/@workspace.Id">@workspace.Name</a>
                 </td>
-                <td class="text-muted">@workspace.Members.Count</td>
+                <td class="text-muted">@(workspace.Members.Admins.Names.Union(workspace.Members.Members.Names).Count())</td>
                 <td class="text-end">
                     <a href="workspaces/@workspace.Id" class="btn btn-sm btn-outline-primary me-1">
                         <span class="bi bi-gear" aria-hidden="true"></span> Details

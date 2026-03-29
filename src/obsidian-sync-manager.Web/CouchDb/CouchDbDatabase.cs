@@ -1,5 +1,7 @@
+using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Swick.Obsidian.SyncManager.Web.CouchDb;
 
@@ -76,33 +78,38 @@ public class CouchDbDatabaseSecurity(HttpClient httpClient, string name)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public async IAsyncEnumerable<string> GetMembersAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async Task<CouchDbSecurityRecord> GetAsync(CancellationToken cancellationToken = default)
     {
         using var response = await httpClient.GetAsync($"/{Uri.EscapeDataString(name)}/_security", cancellationToken);
+
         if (!response.IsSuccessStatusCode)
-            yield break;
+            return new CouchDbSecurityRecord(new([], []), new([], []));
 
-        using var doc = await JsonDocument.ParseAsync(
-            await response.Content.ReadAsStreamAsync(cancellationToken),
-            cancellationToken: cancellationToken);
+        var result = await response.Content.ReadFromJsonAsync<CouchDbSecurityRecord>(JsonOptions, cancellationToken);
 
-        if (doc.RootElement.TryGetProperty("members", out var members) &&
-            members.TryGetProperty("names", out var names))
-        {
-            foreach (var n in names.EnumerateArray())
-                yield return n.GetString()!;
-        }
+        return result ?? new CouchDbSecurityRecord(new([], []), new([], []));
     }
 
-    public async Task SetAsync(IEnumerable<string> memberNames, CancellationToken cancellationToken = default)
+    public async Task SetAsync(CouchDbSecurityRecord securityRecord, CancellationToken cancellationToken = default)
     {
-        var names = memberNames.ToArray();
-        using var content = JsonContent.Create(new
-        {
-            admins = new { names, roles = Array.Empty<string>() },
-            members = new { names, roles = Array.Empty<string>() }
-        }, options: JsonOptions);
+        using var content = JsonContent.Create(securityRecord, options: JsonOptions);
+
         using var response = await httpClient.PutAsync($"/{Uri.EscapeDataString(name)}/_security", content, cancellationToken);
+
         response.EnsureSuccessStatusCode();
     }
 }
+
+public record CouchDbSecurityRecord(
+    [property: JsonPropertyName("admins")] UserRecord Admins,
+    [property: JsonPropertyName("members")] UserRecord Members
+)
+{
+    public bool IsMember(string username) => Members.Names.Contains(username, StringComparer.Ordinal) || IsAdmin(username);
+
+    public bool IsAdmin(string username) => Admins.Names.Contains(username, StringComparer.Ordinal);
+}
+
+public record UserRecord(
+    [property: JsonPropertyName("names")] ImmutableList<string> Names,
+    [property: JsonPropertyName("roles")] ImmutableList<string> Roles);

@@ -1,3 +1,5 @@
+using Swick.Obsidian.SyncManager.Web.CouchDb;
+
 namespace Swick.Obsidian.SyncManager.Web;
 
 public static class WorkspaceEndpoints
@@ -40,7 +42,7 @@ public static class WorkspaceEndpoints
             {
                 var (username, sub) = GetUserClaims(context);
                 var workspace = await workspaces.GetAsync(id);
-                if (workspace is null || !workspace.Members.Contains(username))
+                if (workspace is null || !workspace.Members.IsMember(username))
                     return Results.NotFound();
 
                 var result = workspaces.GenerateSetupUri(username, sub, id, workspace.DatabaseName, workspace.E2eePassphrase);
@@ -51,7 +53,7 @@ public static class WorkspaceEndpoints
             {
                 var (username, _) = GetUserClaims(context);
                 var workspace = await workspaces.GetAsync(id);
-                if (workspace is null || !workspace.Members.Contains(username))
+                if (workspace is null || !workspace.Members.IsMember(username))
                     return Results.NotFound();
 
                 return Results.Ok(workspace.Members);
@@ -89,4 +91,4 @@ public static class WorkspaceEndpoints
 
 record CreateWorkspaceRequest(string Name);
 record AddMemberRequest(string Username);
-public record WorkspaceInfo(string Id, string Name, string DatabaseName, List<string> Members, string E2eePassphrase);
+public record WorkspaceInfo(string Id, string Name, string DatabaseName, CouchDbSecurityRecord Members, string E2eePassphrase);

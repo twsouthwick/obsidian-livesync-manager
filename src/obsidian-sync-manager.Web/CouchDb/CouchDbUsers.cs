@@ -12,10 +12,12 @@ public class CouchDbUsers(CouchDbClient couchDb)
         var userId = $"org.couchdb.user:{username}";
         var existing = await UsersDb.GetAsync<UserDoc>(userId, cancellationToken);
 
+        if (existing is not null)
+            return;
+
         await UsersDb.PutAsync(userId, new UserDoc
         {
             Id = userId,
-            Rev = existing?.Rev,
             Name = username,
             Password = password,
             Type = "user",

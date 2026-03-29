@@ -22,9 +22,12 @@ public sealed partial class WorkspaceService(
     {
         await foreach (var d in Registry.GetAllAsync<WorkspaceRegistryDoc>(cancellationToken))
         {
-            if (d.DatabaseName.Length == 0) continue;
-            var members = await couchDb.Database(d.DatabaseName).Security.GetMembersAsync(cancellationToken).ToListAsync(cancellationToken);
-            if (members.Contains(username, StringComparer.Ordinal))
+            if (string.IsNullOrEmpty(d.DatabaseName))
+                continue;
+
+            var members = await couchDb.Database(d.DatabaseName).Security.GetAsync(cancellationToken);
+        
+            if (members.IsMember(username))
                 yield return new WorkspaceInfo(d.Id, d.Name, d.DatabaseName, members, d.E2eePassphrase);
         }
     }
@@ -33,7 +36,7 @@ public sealed partial class WorkspaceService(
     {
         var doc = await Registry.GetAsync<WorkspaceRegistryDoc>(workspaceId, cancellationToken);
         if (doc is null) return null;
-        var members = await couchDb.Database(doc.DatabaseName).Security.GetMembersAsync(cancellationToken).ToListAsync(cancellationToken);
+        var members = await couchDb.Database(doc.DatabaseName).Security.GetAsync(cancellationToken);
         return new WorkspaceInfo(doc.Id, doc.Name, doc.DatabaseName, members, doc.E2eePassphrase);
     }
 
@@ -53,7 +56,11 @@ public sealed partial class WorkspaceService(
         if (!await db.CreateIfNotExistsAsync(cancellationToken))
             return (false, null);
 
-        await db.Security.SetAsync([username], cancellationToken);
+var securityRecord = new CouchDbSecurityRecord(
+            new UserRecord([username], []),
+            new UserRecord([], [])
+        );
+        await db.Security.SetAsync(securityRecord, cancellationToken);
 
         var e2eePassphrase = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
@@ -67,7 +74,7 @@ public sealed partial class WorkspaceService(
         };
         await Registry.PutAsync(doc.Id, doc, cancellationToken);
 
-        return (true, new WorkspaceInfo(workspaceId, name, dbName, [username], doc.E2eePassphrase));
+        return (true, new WorkspaceInfo(workspaceId, name, dbName, securityRecord, doc.E2eePassphrase));
     }
 
     public async Task<bool> DeleteAsync(string workspaceId, string username, CancellationToken cancellationToken = default)
@@ -77,12 +84,14 @@ public sealed partial class WorkspaceService(
 
         var db = couchDb.Database(doc.DatabaseName);
 
-        if (!await db.Security.GetMembersAsync(cancellationToken).ContainsAsync(username, cancellationToken: cancellationToken))
+        var members = await db.Security.GetAsync(cancellationToken);
+
+        if (!members.IsAdmin(username))
             return false;
 
         await db.DeleteAsync(cancellationToken);
         await Registry.DeleteDocumentAsync(workspaceId, doc.Rev!, cancellationToken);
-        
+
         return true;
     }
 
@@ -94,20 +103,25 @@ public sealed partial class WorkspaceService(
         if (doc is null) return false;
 
         var db = couchDb.Database(doc.DatabaseName);
-        var members = await db.Security.GetMembersAsync(cancellationToken).ToListAsync(cancellationToken);
+        var securityRecord = await db.Security.GetAsync(cancellationToken);
 
-        if (!members.Contains(requestingUsername, StringComparer.Ordinal))
+        if (!securityRecord.IsAdmin(requestingUsername))
             return false;
 
-        if (members.Contains(targetUsername, StringComparer.Ordinal))
+        if (securityRecord.IsMember(targetUsername))
             return true; // already a member
 
         // Target user must have logged in at least once (CouchDB account created on first visit)
         if (!await couchDb.Users.ExistsAsync(targetUsername, cancellationToken))
             return false;
 
-        members.Add(targetUsername);
-        await db.Security.SetAsync(members, cancellationToken);
+        securityRecord = securityRecord with
+        {
+            Members = securityRecord.Members with { Names = securityRecord.Members.Names.Add(targetUsername) }
+        };
+
+        await db.Security.SetAsync(securityRecord, cancellationToken);
+
         return true;
     }
 
@@ -119,19 +133,25 @@ public sealed partial class WorkspaceService(
         if (doc is null) return false;
 
         var db = couchDb.Database(doc.DatabaseName);
-        var members = await db.Security.GetMembersAsync(cancellationToken).ToListAsync(cancellationToken);
+        var securityRecord = await db.Security.GetAsync(cancellationToken);
 
-        if (!members.Contains(requestingUsername, StringComparer.Ordinal))
+        if (!securityRecord.IsAdmin(requestingUsername))
             return false;
 
-        if (!members.Contains(targetUsername, StringComparer.Ordinal))
-            return true; // not a member anyway
+        if (!securityRecord.IsMember(targetUsername))
+            return true;
 
-        if (members.Count == 1)
-            return false; // can't remove last member
+        var updatedSecurityRecord = securityRecord with
+        {
+            Members = securityRecord.Members with { Names = securityRecord.Members.Names.Remove(targetUsername) },
+            Admins = securityRecord.Admins with { Names = securityRecord.Admins.Names.Remove(targetUsername) }
+        };
 
-        members.Remove(targetUsername);
-        await db.Security.SetAsync(members, cancellationToken);
+        if (securityRecord.Admins.Names.Count == 0)
+            return false; // can't remove last admin
+
+        await db.Security.SetAsync(updatedSecurityRecord, cancellationToken);
+
         return true;
     }
 
