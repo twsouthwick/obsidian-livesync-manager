@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 
-namespace obsidian_sync_manager.Web;
+namespace Swick.Obsidian.SyncManager.Web;
 
 public static class AuthenticationExtensions
 {

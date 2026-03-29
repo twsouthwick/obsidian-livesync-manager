@@ -1,15 +1,12 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.DataProtection;
+using Swick.Obsidian.SyncManager.Web.CouchDb;
 
-namespace obsidian_sync_manager.Web;
+namespace Swick.Obsidian.SyncManager.Web;
 
-public interface IUserSecretProvider
-{
-    string DeriveUserPassword(string sub);
-}
-
-public sealed class HmacSecretProvider(
+internal sealed class CouchDbHmacSecretProvider(
     IDataProtectionProvider dataProtectionProvider,
     CouchDbClient couchDb) : IUserSecretProvider
 {
@@ -18,6 +15,8 @@ public sealed class HmacSecretProvider(
     private const int KeyLengthBytes = 32;
 
     private byte[]? _secretKey;
+
+    private CouchDatabase Registry => couchDb.Database("workspace-registry");
 
     public string DeriveUserPassword(string sub)
     {
@@ -31,17 +30,34 @@ public sealed class HmacSecretProvider(
     {
         var protector = dataProtectionProvider.CreateProtector(Purpose);
 
-        var existing = await couchDb.GetAppSecretAsync(DocId, cancellationToken);
-        if (existing is not null)
+        var existing = await Registry.GetAsync<AppSecretDoc>(DocId, cancellationToken);
+        if (existing?.EncryptedKey is not null)
         {
-            _secretKey = protector.Unprotect(Convert.FromBase64String(existing));
+            _secretKey = protector.Unprotect(Convert.FromBase64String(existing.EncryptedKey));
             return;
         }
 
         // Generate a new random key and store it encrypted
         var rawKey = RandomNumberGenerator.GetBytes(KeyLengthBytes);
         var protectedKey = protector.Protect(rawKey);
-        await couchDb.PutAppSecretAsync(DocId, Convert.ToBase64String(protectedKey), cancellationToken);
+        await Registry.PutAsync(DocId, new AppSecretDoc
+        {
+            Id = DocId,
+            EncryptedKey = Convert.ToBase64String(protectedKey)
+        }, cancellationToken);
         _secretKey = rawKey;
+    }
+
+    private class AppSecretDoc
+    {
+        [JsonPropertyName("_id")]
+        public string Id { get; init; } = "";
+
+        [JsonPropertyName("_rev")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Rev { get; init; }
+
+        [JsonPropertyName("encryptedKey")]
+        public string? EncryptedKey { get; init; }
     }
 }

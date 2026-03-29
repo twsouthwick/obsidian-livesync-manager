@@ -4,8 +4,9 @@ using System.Text;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.Repositories;
 using Microsoft.Extensions.Options;
+using Swick.Obsidian.SyncManager.Web.CouchDb;
 
-namespace obsidian_sync_manager.Web;
+namespace Swick.Obsidian.SyncManager.Web;
 
 public static class CouchDbExtensions
 {
@@ -27,15 +28,15 @@ public static class CouchDbExtensions
             }
 
             builder.Services.AddHttpClient<CouchDbClient>(ConfigureHttpClient);
-            builder.Services.AddHttpClient<CouchDbXmlRepository>(ConfigureHttpClient);
 
+            builder.Services.AddTransient<CouchDbXmlRepository>();
             builder.Services.AddSingleton<IXmlRepository>(sp => sp.GetRequiredService<CouchDbXmlRepository>());
 
             builder.Services.AddDataProtection()
                 .SetApplicationName("obsidian-sync-manager");
 
-            builder.Services.AddSingleton<HmacSecretProvider>();
-            builder.Services.AddSingleton<IUserSecretProvider>(sp => sp.GetRequiredService<HmacSecretProvider>());
+            builder.Services.AddSingleton<CouchDbHmacSecretProvider>();
+            builder.Services.AddSingleton<IUserSecretProvider>(sp => sp.GetRequiredService<CouchDbHmacSecretProvider>());
             builder.Services.AddHostedService<CouchDbInitializer>();
             builder.Services.AddScoped<WorkspaceService>();
         }
@@ -43,7 +44,7 @@ public static class CouchDbExtensions
 
     private class CouchDbInitializer(
         CouchDbClient couchDbAdminClient,
-        HmacSecretProvider hmacSecretProvider,
+        CouchDbHmacSecretProvider hmacSecretProvider,
         ILogger<CouchDbInitializer> logger) : IHostedService
     {
         public Task StartAsync(CancellationToken cancellationToken) => InitializeAsync(cancellationToken);
@@ -60,7 +61,7 @@ public static class CouchDbExtensions
                 {
                     logger.LogInformation("Initializing CouchDB (attempt {Attempt}/{MaxRetries})...", attempt, maxRetries);
                     await couchDbAdminClient.InitializeAsync(cancellationToken);
-                    await couchDbAdminClient.CreateRegistryDatabaseAsync(cancellationToken);
+                    await couchDbAdminClient.Database("workspace-registry").CreateIfNotExistsAsync(cancellationToken);
                     await hmacSecretProvider.InitializeAsync(cancellationToken);
                     logger.LogInformation("CouchDB initialized successfully.");
                     return;

@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace obsidian_sync_manager.Web;
+namespace Swick.Obsidian.SyncManager.Web;
 
 /// <summary>
 /// Encrypts LiveSync configuration into a setup URI that the Obsidian plugin can decrypt.

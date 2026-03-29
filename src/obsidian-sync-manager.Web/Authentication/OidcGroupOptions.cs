@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace obsidian_sync_manager.Web;
+namespace Swick.Obsidian.SyncManager.Web;
 
 public sealed class OidcGroupOptions
 {

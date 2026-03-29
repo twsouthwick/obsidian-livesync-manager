@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AssemblyName>Swick.Obsidian.SyncManager.Web</AssemblyName>
+    <RootNamespace>Swick.Obsidian.SyncManager.Web</RootNamespace>
     <ContainerRepository>obsidian-sync-manager</ContainerRepository>
   </PropertyGroup>
 

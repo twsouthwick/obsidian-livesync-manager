@@ -1,5 +1,5 @@
-using obsidian_sync_manager.Web;
-using obsidian_sync_manager.Web.Components;
+using Swick.Obsidian.SyncManager.Web;
+using Swick.Obsidian.SyncManager.Web.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
