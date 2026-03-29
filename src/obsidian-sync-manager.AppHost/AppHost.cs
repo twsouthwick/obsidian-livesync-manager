@@ -2,6 +2,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var couchdbUsername = builder.AddParameter("couchdb-username");
 var couchdbPassword = builder.AddParameter("couchdb-password", secret: true);
+var oidcClientSecret = builder.AddParameter("oidc-client-secret", secret: true);
 
 var couchdb = builder.AddContainer("couchdb", "couchdb", "latest")
     .WithEnvironment("COUCHDB_USER", couchdbUsername)
@@ -13,7 +14,7 @@ var keycloak = builder.AddKeycloak("keycloak", 8080)
     .WithDataVolume()
     .WithRealmImport("./Realms");
 
-builder.AddProject<Projects.obsidian_sync_manager_Web>("webfrontend")
+builder.AddProject<Projects.obsidian_sync_manager_Web>("obsidian-manager")
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health")
     .WaitFor(couchdb)
@@ -22,6 +23,7 @@ builder.AddProject<Projects.obsidian_sync_manager_Web>("webfrontend")
     .WithEnvironment("COUCHDB__USERNAME", couchdbUsername)
     .WithEnvironment("COUCHDB__PASSWORD", couchdbPassword)
     .WithEnvironment("OIDC__Authority", ReferenceExpression.Create($"{keycloak.GetEndpoint("https")}/realms/obsidian-sync"))
-    .WithEnvironment("OIDC__ClientId", "obsidian-web");
+    .WithEnvironment("OIDC__ClientId", "obsidian-web")
+    .WithEnvironment("OIDC__ClientSecret", oidcClientSecret);
 
 builder.Build().Run();
