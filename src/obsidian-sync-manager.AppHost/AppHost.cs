@@ -8,11 +8,26 @@ var couchdb = builder.AddContainer("couchdb", "couchdb", "latest")
     .WithEnvironment("COUCHDB_USER", couchdbUsername)
     .WithEnvironment("COUCHDB_PASSWORD", couchdbPassword)
     .WithHttpEndpoint(targetPort: 5984)
-    .WithVolume("couchdb-data", "/opt/couchdb/data");
+    .WithVolume("couchdb-data", "/opt/couchdb/data")
+    .WithUrlForEndpoint("http", url =>
+    {
+        url.DisplayText = "Fauxton";
+        url.Url = "/_utils";
+    });
 
 var keycloak = builder.AddKeycloak("keycloak", 8080)
     .WithDataVolume()
-    .WithRealmImport("./Realms");
+    .WithRealmImport("./Realms")
+    .WithUrlForEndpoint("http", url =>
+    {
+        url.DisplayText = "http";
+        url.Url = "/";
+    })
+    .WithUrlForEndpoint("https", url =>
+    {
+        url.DisplayText = "https";
+        url.Url = "/";
+    });
 
 builder.AddProject<Projects.obsidian_sync_manager_Web>("obsidian-manager")
     .WithExternalHttpEndpoints()
@@ -24,6 +39,16 @@ builder.AddProject<Projects.obsidian_sync_manager_Web>("obsidian-manager")
     .WithEnvironment("COUCHDB__PASSWORD", couchdbPassword)
     .WithEnvironment("OIDC__Authority", ReferenceExpression.Create($"{keycloak.GetEndpoint("https")}/realms/obsidian-sync"))
     .WithEnvironment("OIDC__ClientId", "obsidian-web")
-    .WithEnvironment("OIDC__ClientSecret", oidcClientSecret);
+    .WithEnvironment("OIDC__ClientSecret", oidcClientSecret)
+    .WithUrlForEndpoint("http", url =>
+    {
+        url.DisplayText = "http";
+        url.Url = "/";
+    })
+    .WithUrlForEndpoint("https", url =>
+    {
+        url.DisplayText = "https";
+        url.Url = "/";
+    });
 
 builder.Build().Run();
