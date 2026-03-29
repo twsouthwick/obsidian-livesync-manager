@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using QRCoder;
 
 namespace Swick.Obsidian.SyncManager.Web;
 
@@ -126,6 +127,18 @@ public sealed class SetupUriEncryptionService
         var allWords = Adjectives.Concat(Nouns).ToArray();
         return string.Join("-", Enumerable.Range(0, wordCount)
             .Select(_ => allWords[RandomNumberGenerator.GetInt32(allWords.Length)]));
+    }
+
+    /// <summary>
+    /// Generates an inline SVG string containing a QR code for the given data.
+    /// Uses error correction level L to maximise capacity, matching the LiveSync plugin.
+    /// </summary>
+    public static string GenerateQrCodeSvg(string data)
+    {
+        using var generator = new QRCodeGenerator();
+        using var qrData = generator.CreateQrCode(data, QRCodeGenerator.ECCLevel.L);
+        var svg = new SvgQRCode(qrData);
+        return svg.GetGraphic(3);
     }
 }
 

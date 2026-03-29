@@ -1,0 +1,12 @@
+<div class="qr-code-container text-center my-3 p-3 border rounded bg-white">
+    @((MarkupString)SetupUriEncryptionService.GenerateQrCodeSvg(Uri))
+    @if (Caption is not null)
+    {
+        <div class="form-text mt-2">@Caption</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Uri { get; set; } = default!;
+    [Parameter] public string? Caption { get; set; }
+}
