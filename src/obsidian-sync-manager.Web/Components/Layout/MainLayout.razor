@@ -1,4 +1,5 @@
 ﻿@inherits LayoutComponentBase
+@using System.Reflection
 
 <div class="page">
     <div class="sidebar">
@@ -21,6 +22,10 @@
         <article class="content px-4">
             @Body
         </article>
+
+        <footer class="app-footer px-4">
+            <span>@AppVersion</span>
+        </footer>
     </main>
 </div>
 
@@ -29,3 +34,10 @@
     <a href="" class="reload">Reload</a>
     <a class="dismiss">🗙</a>
 </div>
+
+@code {
+    private static string AppVersion { get; } =
+        typeof(MainLayout).Assembly
+            .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion ?? "dev";
+}

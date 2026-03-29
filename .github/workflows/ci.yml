@@ -19,6 +19,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v3.2.1
+        with:
+          versionSpec: '6.x'
+
+      - name: Determine version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v3.2.1
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -49,5 +60,5 @@ jobs:
             /t:PublishContainer \
             -p:ContainerRegistry=${{ env.REGISTRY }} \
             -p:ContainerImageName=${{ env.REGISTRY }}/${{ github.repository_owner }}/obsidian-sync-manager \
-            -p:ContainerImageTag=${{ github.sha }} \
-            -p:ContainerImageTags='"${{ github.sha }};latest"'
+            -p:ContainerImageTag=${{ steps.gitversion.outputs.semVer }} \
+            -p:ContainerImageTags='"${{ steps.gitversion.outputs.semVer }};latest"'
