@@ -10,55 +10,109 @@ public sealed partial class WorkspaceService(CouchDbAdminClient couchDb, IConfig
     public static bool IsValidWorkspaceName(string name) =>
         name.Length is > 0 and <= 64 && ValidNameRegex().IsMatch(name);
 
-    public string GetDatabaseName(string userId, string workspaceName) =>
-        $"livesync-{userId}-{workspaceName}";
-
-    public string GetCouchDbUsername(string userId) =>
-        $"livesync-{userId}";
-
-    public async Task<List<WorkspaceInfo>> ListAsync(string userId, CancellationToken cancellationToken = default)
+    public async Task<List<WorkspaceInfo>> ListAsync(string username, CancellationToken cancellationToken = default)
     {
-        var prefix = $"livesync-{userId}-";
-        var databases = await couchDb.ListDatabasesAsync(cancellationToken);
-
-        return databases
-            .Where(db => db.StartsWith(prefix, StringComparison.Ordinal))
-            .Select(db => new WorkspaceInfo(db[prefix.Length..], db))
+        var docs = await couchDb.ListWorkspaceDocsAsync(cancellationToken);
+        return docs
+            .Where(d => d.Members.Contains(username, StringComparer.Ordinal))
+            .Select(d => new WorkspaceInfo(d.Id, d.Name, d.DatabaseName, d.Members, d.E2eePassphrase))
             .OrderBy(w => w.Name)
             .ToList();
     }
 
-    public async Task<(bool Success, WorkspaceInfo? Workspace)> CreateAsync(string userId, string name, CancellationToken cancellationToken = default)
+    public async Task<WorkspaceInfo?> GetAsync(string workspaceId, CancellationToken cancellationToken = default)
     {
-        var dbName = GetDatabaseName(userId, name);
-        var username = GetCouchDbUsername(userId);
-        var password = DeriveUserPassword(userId);
+        var doc = await couchDb.GetWorkspaceDocAsync(workspaceId, cancellationToken);
+        if (doc is null) return null;
+        return new WorkspaceInfo(doc.Id, doc.Name, doc.DatabaseName, doc.Members, doc.E2eePassphrase);
+    }
 
+    public async Task EnsureCurrentUserAsync(string username, string sub, CancellationToken cancellationToken = default)
+    {
+        var password = DeriveUserPassword(sub);
         await couchDb.EnsureUserAsync(username, password, cancellationToken);
+    }
+
+    public async Task<(bool Success, WorkspaceInfo? Workspace)> CreateAsync(
+        string username, string name, CancellationToken cancellationToken = default)
+    {
+        var workspaceId = Guid.NewGuid().ToString("N")[..12];
+        var dbName = $"livesync-{workspaceId}";
 
         if (!await couchDb.CreateDatabaseAsync(dbName, cancellationToken))
             return (false, null);
 
-        await couchDb.SetDatabaseSecurityAsync(dbName, username, cancellationToken);
-        return (true, new WorkspaceInfo(name, dbName));
+        await couchDb.SetDatabaseSecurityAsync(dbName, [username], cancellationToken);
+
+        var doc = new WorkspaceRegistryDoc
+        {
+            Id = workspaceId,
+            Name = name,
+            DatabaseName = dbName,
+            CreatedBy = username,
+            Members = [username],
+            E2eePassphrase = SetupUriEncryptionService.GenerateE2eePassphrase(),
+        };
+        await couchDb.PutWorkspaceDocAsync(doc, cancellationToken);
+
+        return (true, new WorkspaceInfo(workspaceId, name, dbName, doc.Members, doc.E2eePassphrase));
     }
 
-    public Task<bool> DeleteAsync(string userId, string name, CancellationToken cancellationToken = default) =>
-        couchDb.DeleteDatabaseAsync(GetDatabaseName(userId, name), cancellationToken);
-
-    public async Task<bool> ExistsAsync(string userId, string name, CancellationToken cancellationToken = default)
+    public async Task<bool> DeleteAsync(string workspaceId, string username, CancellationToken cancellationToken = default)
     {
-        var dbName = GetDatabaseName(userId, name);
-        var databases = await couchDb.ListDatabasesAsync(cancellationToken);
-        return databases.Contains(dbName);
+        var doc = await couchDb.GetWorkspaceDocAsync(workspaceId, cancellationToken);
+        if (doc is null || !doc.Members.Contains(username))
+            return false;
+
+        await couchDb.DeleteDatabaseAsync(doc.DatabaseName, cancellationToken);
+        await couchDb.DeleteWorkspaceDocAsync(workspaceId, doc.Rev!, cancellationToken);
+        return true;
     }
 
-    public EncryptedSetupUri GenerateSetupUri(string userId, string workspaceName)
+    public async Task<bool> AddMemberAsync(
+        string workspaceId, string requestingUsername, string targetUsername,
+        CancellationToken cancellationToken = default)
     {
-        var dbName = GetDatabaseName(userId, workspaceName);
-        var username = GetCouchDbUsername(userId);
-        var password = DeriveUserPassword(userId);
-        var e2eePassphrase = SetupUriEncryptionService.GenerateE2eePassphrase();
+        var doc = await couchDb.GetWorkspaceDocAsync(workspaceId, cancellationToken);
+        if (doc is null || !doc.Members.Contains(requestingUsername))
+            return false;
+
+        if (doc.Members.Contains(targetUsername))
+            return true; // already a member
+
+        // Target user must have logged in at least once (CouchDB account created on first visit)
+        if (!await couchDb.UserExistsAsync(targetUsername, cancellationToken))
+            return false;
+
+        doc.Members.Add(targetUsername);
+        await couchDb.PutWorkspaceDocAsync(doc, cancellationToken);
+        await couchDb.SetDatabaseSecurityAsync(doc.DatabaseName, doc.Members, cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> RemoveMemberAsync(
+        string workspaceId, string requestingUsername, string targetUsername,
+        CancellationToken cancellationToken = default)
+    {
+        var doc = await couchDb.GetWorkspaceDocAsync(workspaceId, cancellationToken);
+        if (doc is null || !doc.Members.Contains(requestingUsername))
+            return false;
+
+        if (!doc.Members.Contains(targetUsername))
+            return true; // not a member anyway
+
+        if (doc.Members.Count == 1)
+            return false; // can't remove last member
+
+        doc.Members.Remove(targetUsername);
+        await couchDb.PutWorkspaceDocAsync(doc, cancellationToken);
+        await couchDb.SetDatabaseSecurityAsync(doc.DatabaseName, doc.Members, cancellationToken);
+        return true;
+    }
+
+    public EncryptedSetupUri GenerateSetupUri(string username, string sub, string workspaceId, string databaseName, string e2eePassphrase)
+    {
+        var password = DeriveUserPassword(sub);
         var couchDbUrl = config["COUCHDB_URL"]
             ?? throw new InvalidOperationException("COUCHDB_URL is not configured.");
 
@@ -67,7 +121,7 @@ public sealed partial class WorkspaceService(CouchDbAdminClient couchDb, IConfig
             couchDB_URI = couchDbUrl,
             couchDB_USER = username,
             couchDB_PASSWORD = password,
-            couchDB_DBNAME = dbName,
+            couchDB_DBNAME = databaseName,
             encrypt = true,
             passphrase = e2eePassphrase,
             usePathObfuscation = true,
@@ -92,13 +146,13 @@ public sealed partial class WorkspaceService(CouchDbAdminClient couchDb, IConfig
         return result with { E2eePassphrase = e2eePassphrase };
     }
 
-    private string DeriveUserPassword(string userId)
+    private string DeriveUserPassword(string sub)
     {
         var secret = config["COUCHDB_USER_SECRET"]
             ?? throw new InvalidOperationException("COUCHDB_USER_SECRET is not configured.");
         var hash = HMACSHA256.HashData(
             Encoding.UTF8.GetBytes(secret),
-            Encoding.UTF8.GetBytes(userId));
+            Encoding.UTF8.GetBytes(sub));
         return Convert.ToHexStringLower(hash);
     }
 

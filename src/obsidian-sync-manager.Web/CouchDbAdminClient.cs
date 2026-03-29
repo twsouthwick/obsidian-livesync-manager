@@ -1,12 +1,15 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace obsidian_sync_manager.Web;
 
 public class CouchDbAdminClient(HttpClient httpClient)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    private const string RegistryDb = "workspace-registry";
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
@@ -90,12 +93,13 @@ public class CouchDbAdminClient(HttpClient httpClient)
         await PutJsonAsync($"/_users/{encodedId}", userDoc, cancellationToken);
     }
 
-    public async Task SetDatabaseSecurityAsync(string db, string username, CancellationToken cancellationToken = default)
+    public async Task SetDatabaseSecurityAsync(string db, IEnumerable<string> memberNames, CancellationToken cancellationToken = default)
     {
+        var names = memberNames.ToArray();
         await PutJsonAsync($"/{Uri.EscapeDataString(db)}/_security", new
         {
-            admins = new { names = Array.Empty<string>(), roles = Array.Empty<string>() },
-            members = new { names = new[] { username }, roles = Array.Empty<string>() }
+            admins = new { names, roles = Array.Empty<string>() },
+            members = new { names, roles = Array.Empty<string>() }
         }, cancellationToken);
     }
 
@@ -112,6 +116,61 @@ public class CouchDbAdminClient(HttpClient httpClient)
         response.EnsureSuccessStatusCode();
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+    }
+
+    public async Task<bool> UserExistsAsync(string username, CancellationToken cancellationToken = default)
+    {
+        var userId = $"org.couchdb.user:{username}";
+        var response = await httpClient.GetAsync($"/_users/{Uri.EscapeDataString(userId)}", cancellationToken);
+        return response.IsSuccessStatusCode;
+    }
+
+    // --- Workspace registry ---
+
+    public async Task CreateRegistryDatabaseAsync(CancellationToken cancellationToken = default)
+    {
+        await httpClient.PutAsync($"/{RegistryDb}", null, cancellationToken);
+    }
+
+    public async Task<WorkspaceRegistryDoc?> GetWorkspaceDocAsync(string workspaceId, CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.GetAsync($"/{RegistryDb}/{Uri.EscapeDataString(workspaceId)}", cancellationToken);
+        if (!response.IsSuccessStatusCode) return null;
+        return await response.Content.ReadFromJsonAsync<WorkspaceRegistryDoc>(JsonOptions, cancellationToken);
+    }
+
+    public async Task PutWorkspaceDocAsync(WorkspaceRegistryDoc doc, CancellationToken cancellationToken = default)
+    {
+        await PutJsonAsync($"/{RegistryDb}/{Uri.EscapeDataString(doc.Id)}", doc, cancellationToken);
+    }
+
+    public async Task<bool> DeleteWorkspaceDocAsync(string workspaceId, string rev, CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.DeleteAsync(
+            $"/{RegistryDb}/{Uri.EscapeDataString(workspaceId)}?rev={Uri.EscapeDataString(rev)}",
+            cancellationToken);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<List<WorkspaceRegistryDoc>> ListWorkspaceDocsAsync(CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.GetAsync($"/{RegistryDb}/_all_docs?include_docs=true", cancellationToken);
+        response.EnsureSuccessStatusCode();
+        using var doc = await JsonDocument.ParseAsync(
+            await response.Content.ReadAsStreamAsync(cancellationToken),
+            cancellationToken: cancellationToken);
+
+        var results = new List<WorkspaceRegistryDoc>();
+        foreach (var row in doc.RootElement.GetProperty("rows").EnumerateArray())
+        {
+            if (row.TryGetProperty("doc", out var docElement))
+            {
+                var workspace = docElement.Deserialize<WorkspaceRegistryDoc>(JsonOptions);
+                if (workspace is not null && !workspace.Id.StartsWith('_'))
+                    results.Add(workspace);
+            }
+        }
+        return results;
     }
 
     private async Task PutConfigAsync(string section, string key, string value, CancellationToken cancellationToken)
@@ -137,4 +196,29 @@ public class CouchDbAdminClient(HttpClient httpClient)
         using var response = await httpClient.PutAsync(url, content, cancellationToken);
         response.EnsureSuccessStatusCode();
     }
+}
+
+public class WorkspaceRegistryDoc
+{
+    [JsonPropertyName("_id")]
+    public string Id { get; set; } = "";
+
+    [JsonPropertyName("_rev")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Rev { get; set; }
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("databaseName")]
+    public string DatabaseName { get; set; } = "";
+
+    [JsonPropertyName("createdBy")]
+    public string CreatedBy { get; set; } = "";
+
+    [JsonPropertyName("members")]
+    public List<string> Members { get; set; } = [];
+
+    [JsonPropertyName("e2eePassphrase")]
+    public string E2eePassphrase { get; set; } = "";
 }

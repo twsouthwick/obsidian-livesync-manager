@@ -2,7 +2,7 @@
     <thead>
         <tr>
             <th>Name</th>
-            <th>Database</th>
+            <th>Members</th>
             <th class="text-end">Actions</th>
         </tr>
     </thead>
@@ -11,11 +11,11 @@
         {
             <tr>
                 <td>
-                    <a href="workspaces/@workspace.Name">@workspace.Name</a>
+                    <a href="workspaces/@workspace.Id">@workspace.Name</a>
                 </td>
-                <td class="text-muted"><code>@workspace.DatabaseName</code></td>
+                <td class="text-muted">@workspace.Members.Count</td>
                 <td class="text-end">
-                    <a href="workspaces/@workspace.Name" class="btn btn-sm btn-outline-primary me-1">
+                    <a href="workspaces/@workspace.Id" class="btn btn-sm btn-outline-primary me-1">
                         <span class="bi bi-gear" aria-hidden="true"></span> Details
                     </a>
                     <button class="btn btn-sm btn-outline-danger" @onclick="() => OnDelete.InvokeAsync(workspace)">

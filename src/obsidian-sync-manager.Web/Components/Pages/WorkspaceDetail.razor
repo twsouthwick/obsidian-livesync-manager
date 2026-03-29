@@ -1,14 +1,14 @@
-@page "/workspaces/{Name}"
+@page "/workspaces/{Id}"
 @rendermode InteractiveServer
 @inject WorkspaceService WorkspaceSvc
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
-<PageTitle>@Name — Workspace</PageTitle>
+<PageTitle>@(workspace?.Name ?? Id) — Workspace</PageTitle>
 
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="workspaces">Workspaces</a></li>
-        <li class="breadcrumb-item active" aria-current="page">@Name</li>
+        <li class="breadcrumb-item active" aria-current="page">@(workspace?.Name ?? Id)</li>
     </ol>
 </nav>
 
@@ -19,20 +19,32 @@
 else if (!found.Value)
 {
     <EmptyState Title="Workspace not found" Icon="bi-exclamation-triangle">
-        The workspace "@Name" does not exist or you don't have access.
+        The workspace does not exist or you don't have access.
     </EmptyState>
 }
 else
 {
-    <h1>@Name</h1>
+    <h1>@workspace!.Name</h1>
 
     <div class="row g-4 mt-2">
         <div class="col-lg-6">
-            <ConnectionInfoCard DatabaseName="@databaseName" CouchDbUsername="@couchDbUsername" />
+            <ConnectionInfoCard DatabaseName="@workspace.DatabaseName" CouchDbUsername="@username" />
         </div>
         <div class="col-lg-6">
-            <SetupUriCard Name="@Name" SetupUri="@setupUri" UriPassphrase="@uriPassphrase"
+            <SetupUriCard Name="@workspace.Name" SetupUri="@setupUri" UriPassphrase="@uriPassphrase"
                           OnGenerateRequested="HandleGenerateSetupUri" />
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">Members</h5>
+            <MemberList Members="@workspace.Members" OnAdd="HandleAddMember" OnRemove="HandleRemoveMember"
+                        CurrentUsername="@username" />
+            @if (memberError is not null)
+            {
+                <div class="alert alert-danger mt-2" role="alert">@memberError</div>
+            }
         </div>
     </div>
 
@@ -52,37 +64,61 @@ else
 }
 
 @code {
-    [Parameter] public string Name { get; set; } = default!;
+    [Parameter] public string Id { get; set; } = default!;
 
     [CascadingParameter] private Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState> AuthStateTask { get; set; } = default!;
 
     private bool? found;
-    private string databaseName = "";
-    private string couchDbUsername = "";
+    private WorkspaceInfo? workspace;
+    private string username = "";
+    private string sub = "";
     private string? setupUri;
     private string? uriPassphrase;
-
-    private string UserId => AuthStateTask.Result.User.FindFirst("sub")!.Value;
+    private string? memberError;
 
     protected override async Task OnInitializedAsync()
     {
-        var userId = UserId;
+        username = AuthStateTask.Result.User.FindFirst("preferred_username")!.Value;
+        sub = AuthStateTask.Result.User.FindFirst("sub")!.Value;
 
-        if (!await WorkspaceSvc.ExistsAsync(userId, Name))
+        await WorkspaceSvc.EnsureCurrentUserAsync(username, sub);
+
+        workspace = await WorkspaceSvc.GetAsync(Id);
+        if (workspace is null || !workspace.Members.Contains(username))
         {
             found = false;
             return;
         }
 
         found = true;
-        databaseName = WorkspaceSvc.GetDatabaseName(userId, Name);
-        couchDbUsername = WorkspaceSvc.GetCouchDbUsername(userId);
     }
 
     private void HandleGenerateSetupUri()
     {
-        var result = WorkspaceSvc.GenerateSetupUri(UserId, Name);
+        var result = WorkspaceSvc.GenerateSetupUri(username, sub, Id, workspace!.DatabaseName, workspace.E2eePassphrase);
         setupUri = result.Uri;
         uriPassphrase = result.UriPassphrase;
+    }
+
+    private async Task HandleAddMember(string targetUsername)
+    {
+        memberError = null;
+        if (!await WorkspaceSvc.AddMemberAsync(Id, username, targetUsername))
+        {
+            memberError = $"Could not add \"{targetUsername}\". Make sure they have logged in at least once.";
+            return;
+        }
+        workspace = await WorkspaceSvc.GetAsync(Id);
+    }
+
+    private async Task HandleRemoveMember(string targetUsername)
+    {
+        memberError = null;
+        if (!await WorkspaceSvc.RemoveMemberAsync(Id, username, targetUsername))
+        {
+            memberError = $"Could not remove \"{targetUsername}\". Cannot remove the last member.";
+            return;
+        }
+        workspace = await WorkspaceSvc.GetAsync(Id);
     }
 }

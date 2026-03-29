@@ -36,7 +36,7 @@
     [Parameter] public EventCallback OnCreated { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 
-    private string UserId => AuthStateTask.Result.User.FindFirst("sub")!.Value;
+    private string Username => AuthStateTask.Result.User.FindFirst("preferred_username")!.Value;
 
     private async Task Submit()
     {
@@ -51,10 +51,10 @@
         submitting = true;
         try
         {
-            var (success, _) = await WorkspaceSvc.CreateAsync(UserId, name);
+            var (success, _) = await WorkspaceSvc.CreateAsync(Username, name);
             if (!success)
             {
-                error = "A workspace with this name already exists.";
+                error = "Failed to create workspace.";
                 return;
             }
 

@@ -18,6 +18,7 @@ public class CouchDbInitializer(
             {
                 logger.LogInformation("Initializing CouchDB (attempt {Attempt}/{MaxRetries})...", attempt, maxRetries);
                 await couchDbAdminClient.InitializeAsync(cancellationToken);
+                await couchDbAdminClient.CreateRegistryDatabaseAsync(cancellationToken);
                 logger.LogInformation("CouchDB initialized successfully.");
                 return;
             }
