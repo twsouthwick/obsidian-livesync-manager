@@ -32,7 +32,7 @@ else
         </div>
         <div class="col-lg-6">
             <SetupUriCard Name="@Name" SetupUri="@setupUri" UriPassphrase="@uriPassphrase"
-                          E2eePassphrase="@e2eePassphrase" OnGenerateRequested="HandleGenerateSetupUri" />
+                          OnGenerateRequested="HandleGenerateSetupUri" />
         </div>
     </div>
 
@@ -42,7 +42,6 @@ else
             <ol class="mb-0">
                 <li>Install the <strong>Obsidian LiveSync</strong> plugin in your vault.</li>
                 <li>Click <strong>Generate Setup URI</strong> above.</li>
-                <li>Save the <strong>E2EE passphrase</strong> somewhere safe — you need it on every device sharing this workspace.</li>
                 <li>Open the plugin settings and choose <strong>Use the copied setup URI</strong>.</li>
                 <li>Copy the Setup URI above and paste it when prompted.</li>
                 <li>When asked for the <strong>Setup URI passphrase</strong>, type the passphrase shown above (do not copy it).</li>
@@ -62,7 +61,6 @@ else
     private string couchDbUsername = "";
     private string? setupUri;
     private string? uriPassphrase;
-    private string? e2eePassphrase;
 
     private string UserId => AuthStateTask.Result.User.FindFirst("sub")!.Value;
 
@@ -86,6 +84,5 @@ else
         var result = WorkspaceSvc.GenerateSetupUri(UserId, Name);
         setupUri = result.Uri;
         uriPassphrase = result.UriPassphrase;
-        e2eePassphrase = result.E2eePassphrase;
     }
 }
