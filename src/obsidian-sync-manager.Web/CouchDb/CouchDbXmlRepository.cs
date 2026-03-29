@@ -23,11 +23,10 @@ public sealed class CouchDbXmlRepository(CouchDbClient couchDb) : IXmlRepository
     {
         await KeysDb.CreateIfNotExistsAsync();
 
-        var docs = await KeysDb.ListAsync<DataProtectionKeyDoc>();
-        return docs
+        return await KeysDb.GetAllAsync<DataProtectionKeyDoc>()
             .Where(d => d.Xml is not null)
             .Select(d => XElement.Parse(d.Xml!))
-            .ToList();
+            .ToListAsync();
     }
 
     private async Task StoreElementAsync(XElement element, string friendlyName)

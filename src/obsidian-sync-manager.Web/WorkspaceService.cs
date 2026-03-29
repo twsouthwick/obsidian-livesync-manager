@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -16,21 +18,23 @@ public sealed partial class WorkspaceService(
     public static bool IsValidWorkspaceName(string name) =>
         name.Length is > 0 and <= 64 && ValidNameRegex().IsMatch(name);
 
-    public async Task<List<WorkspaceInfo>> ListAsync(string username, CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<WorkspaceInfo> GetAllAsync(string username, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var docs = await Registry.ListAsync<WorkspaceRegistryDoc>(cancellationToken);
-        return docs
-            .Where(d => d.Members.Contains(username, StringComparer.Ordinal))
-            .Select(d => new WorkspaceInfo(d.Id, d.Name, d.DatabaseName, d.Members, d.E2eePassphrase))
-            .OrderBy(w => w.Name)
-            .ToList();
+        await foreach (var d in Registry.GetAllAsync<WorkspaceRegistryDoc>(cancellationToken))
+        {
+            if (d.DatabaseName.Length == 0) continue;
+            var members = await couchDb.Database(d.DatabaseName).Security.GetMembersAsync(cancellationToken).ToListAsync(cancellationToken);
+            if (members.Contains(username, StringComparer.Ordinal))
+                yield return new WorkspaceInfo(d.Id, d.Name, d.DatabaseName, members, d.E2eePassphrase);
+        }
     }
 
     public async Task<WorkspaceInfo?> GetAsync(string workspaceId, CancellationToken cancellationToken = default)
     {
         var doc = await Registry.GetAsync<WorkspaceRegistryDoc>(workspaceId, cancellationToken);
         if (doc is null) return null;
-        return new WorkspaceInfo(doc.Id, doc.Name, doc.DatabaseName, doc.Members, doc.E2eePassphrase);
+        var members = await couchDb.Database(doc.DatabaseName).Security.GetMembersAsync(cancellationToken).ToListAsync(cancellationToken);
+        return new WorkspaceInfo(doc.Id, doc.Name, doc.DatabaseName, members, doc.E2eePassphrase);
     }
 
     public async Task EnsureCurrentUserAsync(string username, string sub, CancellationToken cancellationToken = default)
@@ -44,11 +48,14 @@ public sealed partial class WorkspaceService(
     {
         var workspaceId = Guid.NewGuid().ToString("N")[..12];
         var dbName = $"livesync-{workspaceId}";
+        var db = couchDb.Database(dbName);
 
-        if (!await couchDb.Database(dbName).CreateIfNotExistsAsync(cancellationToken))
+        if (!await db.CreateIfNotExistsAsync(cancellationToken))
             return (false, null);
 
-        await couchDb.Database(dbName).Security.SetAsync([username], cancellationToken);
+        await db.Security.SetAsync([username], cancellationToken);
+
+        var e2eePassphrase = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
         var doc = new WorkspaceRegistryDoc
         {
@@ -56,22 +63,26 @@ public sealed partial class WorkspaceService(
             Name = name,
             DatabaseName = dbName,
             CreatedBy = username,
-            Members = [username],
-            E2eePassphrase = SetupUriEncryptionService.GenerateE2eePassphrase(),
+            E2eePassphrase = e2eePassphrase,
         };
         await Registry.PutAsync(doc.Id, doc, cancellationToken);
 
-        return (true, new WorkspaceInfo(workspaceId, name, dbName, doc.Members, doc.E2eePassphrase));
+        return (true, new WorkspaceInfo(workspaceId, name, dbName, [username], doc.E2eePassphrase));
     }
 
     public async Task<bool> DeleteAsync(string workspaceId, string username, CancellationToken cancellationToken = default)
     {
         var doc = await Registry.GetAsync<WorkspaceRegistryDoc>(workspaceId, cancellationToken);
-        if (doc is null || !doc.Members.Contains(username))
+        if (doc is null) return false;
+
+        var db = couchDb.Database(doc.DatabaseName);
+
+        if (!await db.Security.GetMembersAsync(cancellationToken).ContainsAsync(username, cancellationToken: cancellationToken))
             return false;
 
-        await couchDb.Database(doc.DatabaseName).DeleteAsync(cancellationToken);
+        await db.DeleteAsync(cancellationToken);
         await Registry.DeleteDocumentAsync(workspaceId, doc.Rev!, cancellationToken);
+        
         return true;
     }
 
@@ -80,19 +91,23 @@ public sealed partial class WorkspaceService(
         CancellationToken cancellationToken = default)
     {
         var doc = await Registry.GetAsync<WorkspaceRegistryDoc>(workspaceId, cancellationToken);
-        if (doc is null || !doc.Members.Contains(requestingUsername))
+        if (doc is null) return false;
+
+        var db = couchDb.Database(doc.DatabaseName);
+        var members = await db.Security.GetMembersAsync(cancellationToken).ToListAsync(cancellationToken);
+
+        if (!members.Contains(requestingUsername, StringComparer.Ordinal))
             return false;
 
-        if (doc.Members.Contains(targetUsername))
+        if (members.Contains(targetUsername, StringComparer.Ordinal))
             return true; // already a member
 
         // Target user must have logged in at least once (CouchDB account created on first visit)
         if (!await couchDb.Users.ExistsAsync(targetUsername, cancellationToken))
             return false;
 
-        doc.Members.Add(targetUsername);
-        await Registry.PutAsync(doc.Id, doc, cancellationToken);
-        await couchDb.Database(doc.DatabaseName).Security.SetAsync(doc.Members, cancellationToken);
+        members.Add(targetUsername);
+        await db.Security.SetAsync(members, cancellationToken);
         return true;
     }
 
@@ -101,18 +116,22 @@ public sealed partial class WorkspaceService(
         CancellationToken cancellationToken = default)
     {
         var doc = await Registry.GetAsync<WorkspaceRegistryDoc>(workspaceId, cancellationToken);
-        if (doc is null || !doc.Members.Contains(requestingUsername))
+        if (doc is null) return false;
+
+        var db = couchDb.Database(doc.DatabaseName);
+        var members = await db.Security.GetMembersAsync(cancellationToken).ToListAsync(cancellationToken);
+
+        if (!members.Contains(requestingUsername, StringComparer.Ordinal))
             return false;
 
-        if (!doc.Members.Contains(targetUsername))
+        if (!members.Contains(targetUsername, StringComparer.Ordinal))
             return true; // not a member anyway
 
-        if (doc.Members.Count == 1)
+        if (members.Count == 1)
             return false; // can't remove last member
 
-        doc.Members.Remove(targetUsername);
-        await Registry.PutAsync(doc.Id, doc, cancellationToken);
-        await couchDb.Database(doc.DatabaseName).Security.SetAsync(doc.Members, cancellationToken);
+        members.Remove(targetUsername);
+        await db.Security.SetAsync(members, cancellationToken);
         return true;
     }
 
@@ -165,9 +184,6 @@ public class WorkspaceRegistryDoc : CouchDocument
 
     [JsonPropertyName("createdBy")]
     public string CreatedBy { get; set; } = "";
-
-    [JsonPropertyName("members")]
-    public List<string> Members { get; set; } = [];
 
     [JsonPropertyName("e2eePassphrase")]
     public string E2eePassphrase { get; set; } = "";

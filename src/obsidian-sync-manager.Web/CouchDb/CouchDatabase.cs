@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 
 namespace Swick.Obsidian.SyncManager.Web.CouchDb;
@@ -48,7 +49,7 @@ public class CouchDatabase(HttpClient httpClient, string name)
         return response.IsSuccessStatusCode;
     }
 
-    public async Task<List<T>> ListAsync<T>(CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<T> GetAllAsync<T>([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         using var response = await httpClient.GetAsync($"{DbPath}/_all_docs?include_docs=true", cancellationToken);
         response.EnsureSuccessStatusCode();
@@ -56,7 +57,6 @@ public class CouchDatabase(HttpClient httpClient, string name)
             await response.Content.ReadAsStreamAsync(cancellationToken),
             cancellationToken: cancellationToken);
 
-        var results = new List<T>();
         foreach (var row in doc.RootElement.GetProperty("rows").EnumerateArray())
         {
             if (row.TryGetProperty("id", out var idProp) && idProp.GetString()?.StartsWith('_') == true)
@@ -66,16 +66,33 @@ public class CouchDatabase(HttpClient httpClient, string name)
             {
                 var item = docElement.Deserialize<T>(JsonOptions);
                 if (item is not null)
-                    results.Add(item);
+                    yield return item;
             }
         }
-        return results;
     }
 }
 
 public class CouchDatabaseSecurity(HttpClient httpClient, string name)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    public async IAsyncEnumerable<string> GetMembersAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        using var response = await httpClient.GetAsync($"/{Uri.EscapeDataString(name)}/_security", cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            yield break;
+
+        using var doc = await JsonDocument.ParseAsync(
+            await response.Content.ReadAsStreamAsync(cancellationToken),
+            cancellationToken: cancellationToken);
+
+        if (doc.RootElement.TryGetProperty("members", out var members) &&
+            members.TryGetProperty("names", out var names))
+        {
+            foreach (var n in names.EnumerateArray())
+                yield return n.GetString()!;
+        }
+    }
 
     public async Task SetAsync(IEnumerable<string> memberNames, CancellationToken cancellationToken = default)
     {

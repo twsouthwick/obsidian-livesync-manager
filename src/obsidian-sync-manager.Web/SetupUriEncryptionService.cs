@@ -118,18 +118,6 @@ public sealed class SetupUriEncryptionService
     }
 
     /// <summary>
-    /// Generates a strong random passphrase of <paramref name="wordCount"/> words for E2EE.
-    /// Uses the same adjective/noun word lists as the URI passphrase but with more words
-    /// for higher entropy.
-    /// </summary>
-    public static string GenerateE2eePassphrase(int wordCount = 4)
-    {
-        var allWords = Adjectives.Concat(Nouns).ToArray();
-        return string.Join("-", Enumerable.Range(0, wordCount)
-            .Select(_ => allWords[RandomNumberGenerator.GetInt32(allWords.Length)]));
-    }
-
-    /// <summary>
     /// Generates an inline SVG string containing a QR code for the given data.
     /// Uses error correction level L to maximise capacity, matching the LiveSync plugin.
     /// </summary>

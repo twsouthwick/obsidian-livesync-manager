@@ -54,14 +54,14 @@ else
     protected override async Task OnInitializedAsync()
     {
         await WorkspaceSvc.EnsureCurrentUserAsync(Username, Sub);
-        workspaces = await WorkspaceSvc.ListAsync(Username);
+        workspaces = await WorkspaceSvc.GetAllAsync(Username).OrderBy(w => w.Name).ToListAsync();
     }
 
     private async Task OnWorkspaceCreated()
     {
         showCreateForm = false;
         errorMessage = null;
-        workspaces = await WorkspaceSvc.ListAsync(Username);
+        workspaces = await WorkspaceSvc.GetAllAsync(Username).OrderBy(w => w.Name).ToListAsync();
     }
 
     private async Task DeleteWorkspace(WorkspaceInfo workspace)

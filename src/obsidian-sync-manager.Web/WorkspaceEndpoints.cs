@@ -8,10 +8,10 @@ public static class WorkspaceEndpoints
         {
             var group = app.MapGroup("/api/workspaces").RequireAuthorization();
 
-            group.MapGet("/", async (WorkspaceService workspaces, HttpContext context) =>
+            group.MapGet("/", (WorkspaceService workspaces, HttpContext context) =>
             {
                 var (username, _) = GetUserClaims(context);
-                return await workspaces.ListAsync(username);
+                return workspaces.GetAllAsync(username);
             });
 
             group.MapPost("/", async (CreateWorkspaceRequest request, WorkspaceService workspaces, HttpContext context) =>
