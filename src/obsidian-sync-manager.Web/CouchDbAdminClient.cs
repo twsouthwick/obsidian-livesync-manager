@@ -1,5 +1,3 @@
-using System.Net.Http.Headers;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -41,17 +39,17 @@ public class CouchDbAdminClient(HttpClient httpClient)
     public async Task<bool> CreateDatabaseAsync(string name, CancellationToken cancellationToken = default)
     {
         var escaped = Uri.EscapeDataString(name);
-        var head = await httpClient.SendAsync(new HttpRequestMessage(HttpMethod.Head, $"/{escaped}"), cancellationToken);
+        using var head = await httpClient.SendAsync(new HttpRequestMessage(HttpMethod.Head, $"/{escaped}"), cancellationToken);
         if (head.IsSuccessStatusCode)
             return true; // already exists
 
-        var response = await httpClient.PutAsync($"/{escaped}", null, cancellationToken);
+        using var response = await httpClient.PutAsync($"/{escaped}", null, cancellationToken);
         return response.IsSuccessStatusCode;
     }
 
     public async Task<bool> DeleteDatabaseAsync(string name, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.DeleteAsync($"/{Uri.EscapeDataString(name)}", cancellationToken);
+        using var response = await httpClient.DeleteAsync($"/{Uri.EscapeDataString(name)}", cancellationToken);
         return response.IsSuccessStatusCode;
     }
 
@@ -79,7 +77,7 @@ public class CouchDbAdminClient(HttpClient httpClient)
         {
             // Get _rev if user already exists (needed for update)
             string? rev = null;
-            var getResponse = await httpClient.GetAsync(url, cancellationToken);
+            using var getResponse = await httpClient.GetAsync(url, cancellationToken);
             if (getResponse.IsSuccessStatusCode)
             {
                 using var doc = await JsonDocument.ParseAsync(
@@ -99,8 +97,7 @@ public class CouchDbAdminClient(HttpClient httpClient)
             if (rev is not null)
                 userDoc["_rev"] = rev;
 
-            var json = JsonSerializer.Serialize(userDoc, JsonOptions);
-            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var content = JsonContent.Create(userDoc, options: JsonOptions);
             using var response = await httpClient.PutAsync(url, content, cancellationToken);
 
             if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.Created)
@@ -133,14 +130,14 @@ public class CouchDbAdminClient(HttpClient httpClient)
 
     public async Task<string[]> ListDatabasesAsync(CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.GetAsync("/_all_dbs", cancellationToken);
+        using var response = await httpClient.GetAsync("/_all_dbs", cancellationToken);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<string[]>(JsonOptions, cancellationToken) ?? [];
     }
 
     public async Task<JsonDocument> GetDatabaseSecurityAsync(string db, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.GetAsync($"/{Uri.EscapeDataString(db)}/_security", cancellationToken);
+        using var response = await httpClient.GetAsync($"/{Uri.EscapeDataString(db)}/_security", cancellationToken);
         response.EnsureSuccessStatusCode();
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
@@ -149,7 +146,7 @@ public class CouchDbAdminClient(HttpClient httpClient)
     public async Task<bool> UserExistsAsync(string username, CancellationToken cancellationToken = default)
     {
         var userId = $"org.couchdb.user:{username}";
-        var response = await httpClient.GetAsync($"/_users/{Uri.EscapeDataString(userId)}", cancellationToken);
+        using var response = await httpClient.GetAsync($"/_users/{Uri.EscapeDataString(userId)}", cancellationToken);
         return response.IsSuccessStatusCode;
     }
 
@@ -162,7 +159,7 @@ public class CouchDbAdminClient(HttpClient httpClient)
 
     public async Task<WorkspaceRegistryDoc?> GetWorkspaceDocAsync(string workspaceId, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.GetAsync($"/{RegistryDb}/{Uri.EscapeDataString(workspaceId)}", cancellationToken);
+        using var response = await httpClient.GetAsync($"/{RegistryDb}/{Uri.EscapeDataString(workspaceId)}", cancellationToken);
         if (!response.IsSuccessStatusCode) return null;
         return await response.Content.ReadFromJsonAsync<WorkspaceRegistryDoc>(JsonOptions, cancellationToken);
     }
@@ -174,7 +171,7 @@ public class CouchDbAdminClient(HttpClient httpClient)
 
     public async Task<bool> DeleteWorkspaceDocAsync(string workspaceId, string rev, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.DeleteAsync(
+        using var response = await httpClient.DeleteAsync(
             $"/{RegistryDb}/{Uri.EscapeDataString(workspaceId)}?rev={Uri.EscapeDataString(rev)}",
             cancellationToken);
         return response.IsSuccessStatusCode;
@@ -182,7 +179,7 @@ public class CouchDbAdminClient(HttpClient httpClient)
 
     public async Task<List<WorkspaceRegistryDoc>> ListWorkspaceDocsAsync(CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.GetAsync($"/{RegistryDb}/_all_docs?include_docs=true", cancellationToken);
+        using var response = await httpClient.GetAsync($"/{RegistryDb}/_all_docs?include_docs=true", cancellationToken);
         response.EnsureSuccessStatusCode();
         using var doc = await JsonDocument.ParseAsync(
             await response.Content.ReadAsStreamAsync(cancellationToken),
@@ -204,23 +201,21 @@ public class CouchDbAdminClient(HttpClient httpClient)
     private async Task PutConfigAsync(string section, string key, string value, CancellationToken cancellationToken)
     {
         var url = $"/_node/_local/_config/{Uri.EscapeDataString(section)}/{Uri.EscapeDataString(key)}";
-        var content = new StringContent(JsonSerializer.Serialize(value), Encoding.UTF8, "application/json");
-        var response = await httpClient.PutAsync(url, content, cancellationToken);
+        using var content = JsonContent.Create(value);
+        using var response = await httpClient.PutAsync(url, content, cancellationToken);
         response.EnsureSuccessStatusCode();
     }
 
     private async Task PostJsonAsync(string url, object body, CancellationToken cancellationToken)
     {
-        var json = JsonSerializer.Serialize(body, JsonOptions);
-        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var content = JsonContent.Create(body, options: JsonOptions);
         using var response = await httpClient.PostAsync(url, content, cancellationToken);
         response.EnsureSuccessStatusCode();
     }
 
     private async Task PutJsonAsync(string url, object body, CancellationToken cancellationToken)
     {
-        var json = JsonSerializer.Serialize(body, JsonOptions);
-        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var content = JsonContent.Create(body, options: JsonOptions);
         using var response = await httpClient.PutAsync(url, content, cancellationToken);
         response.EnsureSuccessStatusCode();
     }
