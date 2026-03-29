@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.Net.Http.Headers;
 using System.Text;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.Repositories;
 using Microsoft.Extensions.Options;
 
 namespace obsidian_sync_manager.Web;
@@ -16,16 +18,24 @@ public static class CouchDbExtensions
                 .ValidateDataAnnotations()
                 .ValidateOnStart();
 
-            builder.Services.AddHttpClient<CouchDbClient>((sp, client) =>
-                {
-                    var options = sp.GetRequiredService<IOptions<CouchDbOptions>>().Value;
+            void ConfigureHttpClient(IServiceProvider sp, HttpClient client)
+            {
+                var options = sp.GetRequiredService<IOptions<CouchDbOptions>>().Value;
+                client.BaseAddress = options.Url;
+                var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{options.Username}:{options.Password}"));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
+            }
 
-                    client.BaseAddress = options.Url;
+            builder.Services.AddHttpClient<CouchDbClient>(ConfigureHttpClient);
+            builder.Services.AddHttpClient<CouchDbXmlRepository>(ConfigureHttpClient);
 
-                    var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{options.Username}:{options.Password}"));
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
-                });
+            builder.Services.AddSingleton<IXmlRepository>(sp => sp.GetRequiredService<CouchDbXmlRepository>());
 
+            builder.Services.AddDataProtection()
+                .SetApplicationName("obsidian-sync-manager");
+
+            builder.Services.AddSingleton<HmacSecretProvider>();
+            builder.Services.AddSingleton<IUserSecretProvider>(sp => sp.GetRequiredService<HmacSecretProvider>());
             builder.Services.AddHostedService<CouchDbInitializer>();
             builder.Services.AddScoped<WorkspaceService>();
         }
@@ -33,6 +43,7 @@ public static class CouchDbExtensions
 
     private class CouchDbInitializer(
         CouchDbClient couchDbAdminClient,
+        HmacSecretProvider hmacSecretProvider,
         ILogger<CouchDbInitializer> logger) : IHostedService
     {
         public Task StartAsync(CancellationToken cancellationToken) => InitializeAsync(cancellationToken);
@@ -50,6 +61,7 @@ public static class CouchDbExtensions
                     logger.LogInformation("Initializing CouchDB (attempt {Attempt}/{MaxRetries})...", attempt, maxRetries);
                     await couchDbAdminClient.InitializeAsync(cancellationToken);
                     await couchDbAdminClient.CreateRegistryDatabaseAsync(cancellationToken);
+                    await hmacSecretProvider.InitializeAsync(cancellationToken);
                     logger.LogInformation("CouchDB initialized successfully.");
                     return;
                 }
@@ -73,7 +85,4 @@ public class CouchDbOptions
 
     [Required]
     public string Password { get; set; } = null!;
-
-    [Required]
-    public string UserSecret { get; set; } = null!;
 }

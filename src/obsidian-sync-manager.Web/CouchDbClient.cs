@@ -198,6 +198,34 @@ public class CouchDbClient(HttpClient httpClient)
         return results;
     }
 
+    // --- App secrets (singleton docs in workspace-registry) ---
+
+    public async Task<string?> GetAppSecretAsync(string docId, CancellationToken cancellationToken = default)
+    {
+        using var response = await httpClient.GetAsync($"/{RegistryDb}/{Uri.EscapeDataString(docId)}", cancellationToken);
+        if (!response.IsSuccessStatusCode) return null;
+
+        using var doc = await JsonDocument.ParseAsync(
+            await response.Content.ReadAsStreamAsync(cancellationToken),
+            cancellationToken: cancellationToken);
+
+        return doc.RootElement.TryGetProperty("encryptedKey", out var prop)
+            ? prop.GetString()
+            : null;
+    }
+
+    public async Task PutAppSecretAsync(string docId, string encryptedKey, CancellationToken cancellationToken = default)
+    {
+        var body = new Dictionary<string, string>
+        {
+            ["_id"] = docId,
+            ["encryptedKey"] = encryptedKey
+        };
+        await PutJsonAsync($"/{RegistryDb}/{Uri.EscapeDataString(docId)}", body, cancellationToken);
+    }
+
+    // --- Internal helpers ---
+
     private async Task PutConfigAsync(string section, string key, string value, CancellationToken cancellationToken)
     {
         var url = $"/_node/_local/_config/{Uri.EscapeDataString(section)}/{Uri.EscapeDataString(key)}";

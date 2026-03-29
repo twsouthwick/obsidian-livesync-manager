@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
@@ -8,7 +6,8 @@ namespace obsidian_sync_manager.Web;
 
 public sealed partial class WorkspaceService(
     CouchDbClient couchDb,
-    IOptions<CouchDbOptions> couchDbOptions)
+    IOptions<CouchDbOptions> couchDbOptions,
+    IUserSecretProvider userSecretProvider)
 {
     public static bool IsValidWorkspaceName(string name) =>
         name.Length is > 0 and <= 64 && ValidNameRegex().IsMatch(name);
@@ -32,7 +31,7 @@ public sealed partial class WorkspaceService(
 
     public async Task EnsureCurrentUserAsync(string username, string sub, CancellationToken cancellationToken = default)
     {
-        var password = DeriveUserPassword(sub);
+        var password = userSecretProvider.DeriveUserPassword(sub);
         await couchDb.EnsureUserAsync(username, password, cancellationToken);
     }
 
@@ -115,7 +114,7 @@ public sealed partial class WorkspaceService(
 
     public EncryptedSetupUri GenerateSetupUri(string username, string sub, string workspaceId, string databaseName, string e2eePassphrase)
     {
-        var password = DeriveUserPassword(sub);
+        var password = userSecretProvider.DeriveUserPassword(sub);
         var couchDbUrl = couchDbOptions.Value.Url;
 
         var settings = JsonSerializer.Serialize(new
@@ -146,14 +145,6 @@ public sealed partial class WorkspaceService(
 
         var result = SetupUriEncryptionService.CreateEncryptedSetupUri(settings);
         return result with { E2eePassphrase = e2eePassphrase };
-    }
-
-    private string DeriveUserPassword(string sub)
-    {
-        var hash = HMACSHA256.HashData(
-            Encoding.UTF8.GetBytes(couchDbOptions.Value.UserSecret),
-            Encoding.UTF8.GetBytes(sub));
-        return Convert.ToHexStringLower(hash);
     }
 
     [GeneratedRegex(@"^[a-z0-9][a-z0-9-]*$")]
