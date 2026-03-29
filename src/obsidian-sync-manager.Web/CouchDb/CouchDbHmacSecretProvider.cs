@@ -16,7 +16,7 @@ internal sealed class CouchDbHmacSecretProvider(
 
     private byte[]? _secretKey;
 
-    private CouchDatabase Registry => couchDb.Database("workspace-registry");
+    private CouchDbDatabase Registry => couchDb.Database("workspace-registry");
 
     public string DeriveUserPassword(string sub)
     {
@@ -48,7 +48,7 @@ internal sealed class CouchDbHmacSecretProvider(
         _secretKey = rawKey;
     }
 
-    private class AppSecretDoc : CouchDocument
+    private class AppSecretDoc : CouchDbDocument
     {
         [JsonPropertyName("encryptedKey")]
         public string? EncryptedKey { get; init; }

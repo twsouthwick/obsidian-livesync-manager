@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Swick.Obsidian.SyncManager.Web.CouchDb;
 
-public abstract class CouchDocument
+public abstract class CouchDbDocument
 {
     [JsonPropertyName("_id")]
     public string Id { get; set; } = "";

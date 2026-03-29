@@ -3,13 +3,13 @@ using System.Text.Json;
 
 namespace Swick.Obsidian.SyncManager.Web.CouchDb;
 
-public class CouchDatabase(HttpClient httpClient, string name)
+public class CouchDbDatabase(HttpClient httpClient, string name)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private string DbPath => $"/{Uri.EscapeDataString(name)}";
 
-    public CouchDatabaseSecurity Security => new(httpClient, name);
+    public CouchDbDatabaseSecurity Security => new(httpClient, name);
 
     public async Task<bool> CreateIfNotExistsAsync(CancellationToken cancellationToken = default)
     {
@@ -72,7 +72,7 @@ public class CouchDatabase(HttpClient httpClient, string name)
     }
 }
 
-public class CouchDatabaseSecurity(HttpClient httpClient, string name)
+public class CouchDbDatabaseSecurity(HttpClient httpClient, string name)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 

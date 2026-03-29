@@ -8,7 +8,7 @@ public class CouchDbClient(HttpClient httpClient)
 
     public CouchDbUsers Users => new(this);
 
-    public CouchDatabase Database(string name) => new(httpClient, name);
+    public CouchDbDatabase Database(string name) => new(httpClient, name);
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {

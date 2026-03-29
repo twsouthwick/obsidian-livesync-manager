@@ -7,7 +7,7 @@ namespace Swick.Obsidian.SyncManager.Web;
 
 public sealed class CouchDbXmlRepository(CouchDbClient couchDb) : IXmlRepository
 {
-    private CouchDatabase KeysDb => couchDb.Database("data-protection-keys");
+    private CouchDbDatabase KeysDb => couchDb.Database("data-protection-keys");
 
     public IReadOnlyCollection<XElement> GetAllElements()
     {
@@ -42,7 +42,7 @@ public sealed class CouchDbXmlRepository(CouchDbClient couchDb) : IXmlRepository
         });
     }
 
-    private class DataProtectionKeyDoc : CouchDocument
+    private class DataProtectionKeyDoc : CouchDbDocument
     {
         [JsonPropertyName("xml")]
         public string? Xml { get; init; }

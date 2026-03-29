@@ -9,7 +9,7 @@ graph TD
     UI["Blazor Server UI<br/>(InteractiveServer render mode)"]
     API["Minimal API endpoints<br/>/api/workspaces/* · /login · /logout"]
     SVC["WorkspaceService<br/>CRUD · membership · setup URI generation"]
-    COUCH_LAYER["CouchDB layer<br/>CouchDbClient · CouchDatabase · CouchDbUsers"]
+    COUCH_LAYER["CouchDB layer<br/>CouchDbClient · CouchDbDatabase · CouchDbUsers"]
     COUCH["CouchDB<br/>(single-node)"]
 
     IDP --> AUTH_LAYER

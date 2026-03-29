@@ -13,7 +13,7 @@ public sealed partial class WorkspaceService(
     IOptions<CouchDbOptions> couchDbOptions,
     IUserSecretProvider userSecretProvider)
 {
-    private CouchDatabase Registry => couchDb.Database("workspace-registry");
+    private CouchDbDatabase Registry => couchDb.Database("workspace-registry");
 
     public static bool IsValidWorkspaceName(string name) =>
         name.Length is > 0 and <= 64 && ValidNameRegex().IsMatch(name);
@@ -174,7 +174,7 @@ public sealed partial class WorkspaceService(
     private static partial Regex ValidNameRegex();
 }
 
-public class WorkspaceRegistryDoc : CouchDocument
+public class WorkspaceRegistryDoc : CouchDbDocument
 {
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
