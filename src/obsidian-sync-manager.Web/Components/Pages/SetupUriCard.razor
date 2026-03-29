@@ -1,0 +1,84 @@
+<div class="card h-100">
+    <div class="card-body">
+        <h5 class="card-title">Setup URI</h5>
+
+        @if (string.IsNullOrEmpty(SetupUri))
+        {
+            <p class="text-muted">
+                Generate an encrypted setup URI with auto-generated passphrases for end-to-end encryption.
+            </p>
+            <button type="button" class="btn btn-primary" @onclick="OnGenerate" disabled="@generating">
+                @if (generating)
+                {
+                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                }
+                Generate Setup URI
+            </button>
+        }
+        else
+        {
+            <p class="text-muted">
+                Use this URI to configure Obsidian LiveSync in your vault.
+            </p>
+
+            <div class="alert alert-danger d-flex align-items-start mb-3" role="alert">
+                <span class="bi bi-shield-lock me-2 fs-5" aria-hidden="true"></span>
+                <div>
+                    <strong>E2EE Passphrase:</strong>
+                    <code class="user-select-all fs-6">@E2eePassphrase</code>
+                    <div class="form-text mt-1">
+                        Save this passphrase securely. It encrypts your vault contents and must be the same on all devices sharing this workspace. It cannot be recovered.
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-warning d-flex align-items-start" role="alert">
+                <span class="bi bi-key me-2 fs-5" aria-hidden="true"></span>
+                <div>
+                    <strong>URI Passphrase:</strong>
+                    <code class="user-select-all fs-6">@UriPassphrase</code>
+                    <div class="form-text mt-1">
+                        Type this passphrase when prompted in Obsidian. Do not copy it — type it manually for security.
+                    </div>
+                </div>
+            </div>
+
+            <div class="setup-uri-box">
+                <code class="setup-uri-text">@SetupUri</code>
+            </div>
+            <div class="mt-3 d-flex gap-2">
+                <CopyButton Text="@SetupUri" Label="Copy URI" ButtonClass="btn-outline-primary" />
+                <a href="@SetupUri" class="btn btn-sm btn-primary">
+                    <span class="bi bi-box-arrow-up-right" aria-hidden="true"></span> Open in Obsidian
+                </a>
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="OnReset">
+                    <span class="bi bi-arrow-counterclockwise" aria-hidden="true"></span> Regenerate
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Name { get; set; } = default!;
+    [Parameter] public string? SetupUri { get; set; }
+    [Parameter] public string? UriPassphrase { get; set; }
+    [Parameter] public string? E2eePassphrase { get; set; }
+    [Parameter] public EventCallback OnGenerateRequested { get; set; }
+
+    private bool generating;
+
+    private async Task OnGenerate()
+    {
+        generating = true;
+        await OnGenerateRequested.InvokeAsync();
+        generating = false;
+    }
+
+    private void OnReset()
+    {
+        SetupUri = null;
+        UriPassphrase = null;
+        E2eePassphrase = null;
+    }
+}

@@ -1,0 +1,33 @@
+<table class="table table-hover align-middle">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Database</th>
+            <th class="text-end">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var workspace in Workspaces)
+        {
+            <tr>
+                <td>
+                    <a href="workspaces/@workspace.Name">@workspace.Name</a>
+                </td>
+                <td class="text-muted"><code>@workspace.DatabaseName</code></td>
+                <td class="text-end">
+                    <a href="workspaces/@workspace.Name" class="btn btn-sm btn-outline-primary me-1">
+                        <span class="bi bi-gear" aria-hidden="true"></span> Details
+                    </a>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="() => OnDelete.InvokeAsync(workspace)">
+                        <span class="bi bi-trash" aria-hidden="true"></span> Delete
+                    </button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter, EditorRequired] public List<WorkspaceInfo> Workspaces { get; set; } = default!;
+    [Parameter] public EventCallback<WorkspaceInfo> OnDelete { get; set; }
+}

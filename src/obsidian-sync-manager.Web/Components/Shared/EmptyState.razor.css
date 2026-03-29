@@ -1,0 +1,20 @@
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #6c757d;
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 1rem;
+}
+
+.empty-state-title {
+    margin-bottom: 0.5rem;
+}
+
+.empty-state-description {
+    max-width: 28rem;
+    margin: 0 auto;
+}

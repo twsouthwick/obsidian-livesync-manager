@@ -1,0 +1,91 @@
+@page "/workspaces/{Name}"
+@rendermode InteractiveServer
+@inject WorkspaceService WorkspaceSvc
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<PageTitle>@Name — Workspace</PageTitle>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="workspaces">Workspaces</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Name</li>
+    </ol>
+</nav>
+
+@if (!found.HasValue)
+{
+    <p class="text-muted">Loading...</p>
+}
+else if (!found.Value)
+{
+    <EmptyState Title="Workspace not found" Icon="bi-exclamation-triangle">
+        The workspace "@Name" does not exist or you don't have access.
+    </EmptyState>
+}
+else
+{
+    <h1>@Name</h1>
+
+    <div class="row g-4 mt-2">
+        <div class="col-lg-6">
+            <ConnectionInfoCard DatabaseName="@databaseName" CouchDbUsername="@couchDbUsername" />
+        </div>
+        <div class="col-lg-6">
+            <SetupUriCard Name="@Name" SetupUri="@setupUri" UriPassphrase="@uriPassphrase"
+                          E2eePassphrase="@e2eePassphrase" OnGenerateRequested="HandleGenerateSetupUri" />
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">Getting Started</h5>
+            <ol class="mb-0">
+                <li>Install the <strong>Obsidian LiveSync</strong> plugin in your vault.</li>
+                <li>Click <strong>Generate Setup URI</strong> above.</li>
+                <li>Save the <strong>E2EE passphrase</strong> somewhere safe — you need it on every device sharing this workspace.</li>
+                <li>Open the plugin settings and choose <strong>Use the copied setup URI</strong>.</li>
+                <li>Copy the Setup URI above and paste it when prompted.</li>
+                <li>When asked for the <strong>Setup URI passphrase</strong>, type the passphrase shown above (do not copy it).</li>
+                <li>Your vault will begin syncing automatically.</li>
+            </ol>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Name { get; set; } = default!;
+
+    [CascadingParameter] private Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    private bool? found;
+    private string databaseName = "";
+    private string couchDbUsername = "";
+    private string? setupUri;
+    private string? uriPassphrase;
+    private string? e2eePassphrase;
+
+    private string UserId => AuthStateTask.Result.User.FindFirst("sub")!.Value;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userId = UserId;
+
+        if (!await WorkspaceSvc.ExistsAsync(userId, Name))
+        {
+            found = false;
+            return;
+        }
+
+        found = true;
+        databaseName = WorkspaceSvc.GetDatabaseName(userId, Name);
+        couchDbUsername = WorkspaceSvc.GetCouchDbUsername(userId);
+    }
+
+    private void HandleGenerateSetupUri()
+    {
+        var result = WorkspaceSvc.GenerateSetupUri(UserId, Name);
+        setupUri = result.Uri;
+        uriPassphrase = result.UriPassphrase;
+        e2eePassphrase = result.E2eePassphrase;
+    }
+}

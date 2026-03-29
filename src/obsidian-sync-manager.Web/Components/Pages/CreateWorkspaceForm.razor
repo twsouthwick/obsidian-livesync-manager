@@ -1,0 +1,81 @@
+@rendermode InteractiveServer
+@inject WorkspaceService WorkspaceSvc
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">Create New Workspace</h5>
+        <EditForm Model="model" OnValidSubmit="Submit" FormName="create-workspace">
+            <DataAnnotationsValidator />
+            <div class="input-group">
+                <input type="text" class="form-control" placeholder="my-vault" @bind="model.Name"
+                    @bind:event="oninput" disabled="@submitting" />
+                <button class="btn btn-success" type="submit" disabled="@submitting">
+                    @(submitting ? "Creating..." : "Create")
+                </button>
+                <button class="btn btn-outline-secondary" type="button" @onclick="OnCancel" disabled="@submitting">
+                    Cancel
+                </button>
+            </div>
+            <ValidationMessage For="() => model.Name" />
+            @if (error is not null)
+            {
+                <div class="text-danger mt-2">@error</div>
+            }
+            <small class="form-text text-muted">Lowercase letters, numbers, and hyphens only.</small>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private CreateModel model = new();
+    private bool submitting;
+    private string? error;
+
+    [CascadingParameter] private Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    [Parameter] public EventCallback OnCreated { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private string UserId => AuthStateTask.Result.User.FindFirst("sub")!.Value;
+
+    private async Task Submit()
+    {
+        error = null;
+        var name = model.Name?.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(name) || !WorkspaceService.IsValidWorkspaceName(name))
+        {
+            error = "Must be 1-64 lowercase alphanumeric characters or hyphens, starting with a letter or digit.";
+            return;
+        }
+
+        submitting = true;
+        try
+        {
+            var (success, _) = await WorkspaceSvc.CreateAsync(UserId, name);
+            if (!success)
+            {
+                error = "A workspace with this name already exists.";
+                return;
+            }
+
+            model = new();
+            await OnCreated.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            error = $"Failed to create workspace: {ex.Message}";
+        }
+        finally
+        {
+            submitting = false;
+        }
+    }
+
+    private sealed class CreateModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.RegularExpression(@"^[a-z0-9][a-z0-9-]*$", ErrorMessage = "Lowercase letters, numbers, and hyphens only, starting with a letter or digit.")]
+        [System.ComponentModel.DataAnnotations.StringLength(64, MinimumLength = 1)]
+        public string? Name { get; set; }
+    }
+}

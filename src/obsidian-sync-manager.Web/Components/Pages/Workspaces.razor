@@ -1,0 +1,80 @@
+@page "/workspaces"
+@rendermode InteractiveServer
+@inject WorkspaceService WorkspaceSvc
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<PageTitle>Workspaces</PageTitle>
+
+<div class="header-row">
+    <h1>Workspaces</h1>
+    <button class="btn btn-primary" @onclick="() => showCreateForm = true" disabled="@showCreateForm">
+        <span class="bi bi-plus-lg" aria-hidden="true"></span> New Workspace
+    </button>
+</div>
+
+@if (showCreateForm)
+{
+    <CreateWorkspaceForm OnCreated="OnWorkspaceCreated" OnCancel="() => showCreateForm = false" />
+}
+
+@if (workspaces is null)
+{
+    <p class="text-muted">Loading...</p>
+}
+else if (workspaces.Count == 0 && !showCreateForm)
+{
+    <EmptyState Title="No workspaces yet" Icon="bi-folder2-open">
+        Create a workspace to start syncing your Obsidian vault.
+    </EmptyState>
+}
+else
+{
+    <WorkspaceTable Workspaces="workspaces" OnDelete="DeleteWorkspace" />
+}
+
+<ConfirmDialog @ref="confirmDialog" Title="Delete Workspace"
+    ConfirmText="Delete" ConfirmButtonClass="btn-danger" />
+
+@if (errorMessage is not null)
+{
+    <div class="alert alert-danger mt-3" role="alert">@errorMessage</div>
+}
+
+@code {
+    private List<WorkspaceInfo>? workspaces;
+    private bool showCreateForm;
+    private string? errorMessage;
+    private ConfirmDialog confirmDialog = default!;
+
+    [CascadingParameter] private Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    private string UserId => AuthStateTask.Result.User.FindFirst("sub")!.Value;
+
+    protected override async Task OnInitializedAsync()
+    {
+        workspaces = await WorkspaceSvc.ListAsync(UserId);
+    }
+
+    private async Task OnWorkspaceCreated()
+    {
+        showCreateForm = false;
+        errorMessage = null;
+        workspaces = await WorkspaceSvc.ListAsync(UserId);
+    }
+
+    private async Task DeleteWorkspace(WorkspaceInfo workspace)
+    {
+        var confirmed = await confirmDialog.ShowAsync($"Delete workspace \"{workspace.Name}\"? This will permanently remove the CouchDB database and all synced data.");
+        if (!confirmed) return;
+
+        if (await WorkspaceSvc.DeleteAsync(UserId, workspace.Name))
+        {
+            workspaces?.Remove(workspace);
+            errorMessage = null;
+        }
+        else
+        {
+            errorMessage = $"Failed to delete workspace \"{workspace.Name}\".";
+        }
+    }
+}

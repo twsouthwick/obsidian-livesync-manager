@@ -1,0 +1,16 @@
+<div class="card h-100">
+    <div class="card-body">
+        <h5 class="card-title">Connection Info</h5>
+        <dl class="detail-list">
+            <dt>Database</dt>
+            <dd><code>@DatabaseName</code></dd>
+            <dt>CouchDB User</dt>
+            <dd><code>@CouchDbUsername</code></dd>
+        </dl>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string DatabaseName { get; set; } = default!;
+    [Parameter, EditorRequired] public string CouchDbUsername { get; set; } = default!;
+}

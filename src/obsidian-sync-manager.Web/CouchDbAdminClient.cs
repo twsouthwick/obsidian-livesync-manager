@@ -60,6 +60,36 @@ public class CouchDbAdminClient(HttpClient httpClient)
         }, cancellationToken);
     }
 
+    public async Task EnsureUserAsync(string username, string password, CancellationToken cancellationToken = default)
+    {
+        var userId = $"org.couchdb.user:{username}";
+        var encodedId = Uri.EscapeDataString(userId);
+
+        // Get _rev if user already exists (needed for update)
+        string? rev = null;
+        var getResponse = await httpClient.GetAsync($"/_users/{encodedId}", cancellationToken);
+        if (getResponse.IsSuccessStatusCode)
+        {
+            using var doc = await JsonDocument.ParseAsync(
+                await getResponse.Content.ReadAsStreamAsync(cancellationToken),
+                cancellationToken: cancellationToken);
+            rev = doc.RootElement.GetProperty("_rev").GetString();
+        }
+
+        var userDoc = new Dictionary<string, object>
+        {
+            ["_id"] = userId,
+            ["name"] = username,
+            ["password"] = password,
+            ["type"] = "user",
+            ["roles"] = Array.Empty<string>()
+        };
+        if (rev is not null)
+            userDoc["_rev"] = rev;
+
+        await PutJsonAsync($"/_users/{encodedId}", userDoc, cancellationToken);
+    }
+
     public async Task SetDatabaseSecurityAsync(string db, string username, CancellationToken cancellationToken = default)
     {
         await PutJsonAsync($"/{Uri.EscapeDataString(db)}/_security", new

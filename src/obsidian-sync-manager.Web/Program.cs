@@ -21,6 +21,7 @@ builder.Services.AddHttpClient<CouchDbAdminClient>(client =>
     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", credentials);
 });
 builder.Services.AddHostedService<CouchDbInitializer>();
+builder.Services.AddScoped<WorkspaceService>();
 
 // Configure generic OIDC authentication.
 builder.Services.AddOidcAuthentication(builder.Configuration);
@@ -66,6 +67,8 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.MapAuthEndpoints();
+
+app.MapWorkspaceApi();
 
 app.MapDefaultEndpoints();
 

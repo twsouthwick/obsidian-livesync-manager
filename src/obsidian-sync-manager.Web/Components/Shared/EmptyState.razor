@@ -1,0 +1,14 @@
+<div class="empty-state">
+    <span class="empty-state-icon bi @Icon" aria-hidden="true"></span>
+    <h5 class="empty-state-title">@Title</h5>
+    @if (ChildContent is not null)
+    {
+        <p class="empty-state-description">@ChildContent</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = default!;
+    [Parameter] public string Icon { get; set; } = "bi-inbox";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

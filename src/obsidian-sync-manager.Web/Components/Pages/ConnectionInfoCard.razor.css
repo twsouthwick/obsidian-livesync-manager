@@ -1,0 +1,16 @@
+.detail-list {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25rem 1rem;
+    margin: 0;
+}
+
+.detail-list dt {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.detail-list dd {
+    margin: 0;
+    word-break: break-all;
+}
