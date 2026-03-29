@@ -59,6 +59,5 @@ jobs:
             -c Release \
             /t:PublishContainer \
             -p:ContainerRegistry=${{ env.REGISTRY }} \
-            -p:ContainerImageName=${{ env.REGISTRY }}/${{ github.repository_owner }}/obsidian-sync-manager \
-            -p:ContainerImageTag=${{ steps.gitversion.outputs.semVer }} \
+            -p:ContainerRepository=obsidian-sync-manager \
             -p:ContainerImageTags='"${{ steps.gitversion.outputs.semVer }};latest"'
