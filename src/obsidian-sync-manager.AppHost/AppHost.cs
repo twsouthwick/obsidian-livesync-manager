@@ -8,8 +8,7 @@ var couchdb = builder.AddContainer("couchdb", "couchdb", "latest")
     .WithEnvironment("COUCHDB_USER", couchdbUsername)
     .WithEnvironment("COUCHDB_PASSWORD", couchdbPassword)
     .WithHttpEndpoint(targetPort: 5984)
-    .WithVolume("couchdb-data", "/opt/couchdb/data")
-    .WithHttpHealthCheck("/_up", statusCode: 401);
+    .WithVolume("couchdb-data", "/opt/couchdb/data");
 
 var keycloak = builder.AddKeycloak("keycloak", 8080)
     .WithDataVolume()
