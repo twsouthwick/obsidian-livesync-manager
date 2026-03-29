@@ -2,10 +2,13 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Options;
 
 namespace obsidian_sync_manager.Web;
 
-public sealed partial class WorkspaceService(CouchDbAdminClient couchDb, IConfiguration config)
+public sealed partial class WorkspaceService(
+    CouchDbClient couchDb,
+    IOptions<CouchDbOptions> couchDbOptions)
 {
     public static bool IsValidWorkspaceName(string name) =>
         name.Length is > 0 and <= 64 && ValidNameRegex().IsMatch(name);
@@ -113,8 +116,7 @@ public sealed partial class WorkspaceService(CouchDbAdminClient couchDb, IConfig
     public EncryptedSetupUri GenerateSetupUri(string username, string sub, string workspaceId, string databaseName, string e2eePassphrase)
     {
         var password = DeriveUserPassword(sub);
-        var couchDbUrl = config["COUCHDB_URL"]
-            ?? throw new InvalidOperationException("COUCHDB_URL is not configured.");
+        var couchDbUrl = couchDbOptions.Value.Url;
 
         var settings = JsonSerializer.Serialize(new
         {
@@ -148,10 +150,8 @@ public sealed partial class WorkspaceService(CouchDbAdminClient couchDb, IConfig
 
     private string DeriveUserPassword(string sub)
     {
-        var secret = config["COUCHDB_USER_SECRET"]
-            ?? throw new InvalidOperationException("COUCHDB_USER_SECRET is not configured.");
         var hash = HMACSHA256.HashData(
-            Encoding.UTF8.GetBytes(secret),
+            Encoding.UTF8.GetBytes(couchDbOptions.Value.UserSecret),
             Encoding.UTF8.GetBytes(sub));
         return Convert.ToHexStringLower(hash);
     }

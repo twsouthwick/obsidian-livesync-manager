@@ -9,11 +9,11 @@ namespace obsidian_sync_manager.Web;
 
 public static class AuthenticationExtensions
 {
-    extension(IServiceCollection services)
+    extension(IHostApplicationBuilder builder)
     {
-        public IServiceCollection AddOidcAuthentication(IConfiguration configuration)
+        public void AddApplicationAuthentication()
         {
-            services.AddAuthentication(options =>
+            builder.Services.AddAuthentication(options =>
             {
                 options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
@@ -21,36 +21,34 @@ public static class AuthenticationExtensions
             .AddCookie()
             .AddOpenIdConnect(options =>
             {
-                configuration.GetSection("OIDC").Bind(options);
+                builder.Configuration.GetSection("OIDC").Bind(options);
                 options.ResponseType = OpenIdConnectResponseType.Code;
                 options.MapInboundClaims = false;
                 options.SaveTokens = true;
                 options.TokenValidationParameters.RoleClaimType = "groups";
             });
 
-            services.AddCascadingAuthenticationState();
+            builder.Services.AddCascadingAuthenticationState();
 
-            services.AddOptions<OidcGroupOptions>()
+            builder.Services.AddOptions<OidcGroupOptions>()
                 .BindConfiguration("OIDC:Groups")
                 .ValidateDataAnnotations()
                 .ValidateOnStart();
 
-            services.AddAuthorization();
-            services.AddOptions<AuthorizationOptions>()
+            builder.Services.AddAuthorization();
+            builder.Services.AddOptions<AuthorizationOptions>()
                 .Configure<IOptions<OidcGroupOptions>>((options, groupOptions) =>
                 {
                     var groups = groupOptions.Value;
                     options.AddPolicy("Admin", policy => policy.RequireRole(groups.Admins));
                     options.AddPolicy("User", policy => policy.RequireRole(groups.Users, groups.Admins));
                 });
-
-            return services;
         }
     }
 
-    extension(WebApplication app)
+    extension(IEndpointRouteBuilder app)
     {
-        public WebApplication MapAuthEndpoints()
+        public void MapAuthEndpoints()
         {
             app.MapGet("/login", (string? returnUrl) =>
                 TypedResults.Challenge(new AuthenticationProperties { RedirectUri = returnUrl ?? "/" }));
@@ -65,8 +63,6 @@ public static class AuthenticationExtensions
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, properties);
             }).RequireAuthorization();
-
-            return app;
         }
     }
 }

@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace obsidian_sync_manager.Web;
 
-public class CouchDbAdminClient(HttpClient httpClient)
+public class CouchDbClient(HttpClient httpClient)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 

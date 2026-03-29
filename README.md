@@ -1,6 +1,14 @@
 # Obsidian Sync Manager
 
-A self-hosted management layer for [Obsidian LiveSync](https://github.com/vrtmrz/obsidian-livesync) built with .NET Aspire, Blazor, CouchDB, and generic OpenID Connect authentication.
+A self-hosted management layer for [Obsidian LiveSync](https://github.com/vrtmrz/obsidian-livesync) with CouchDB and generic OpenID Connect authentication.
+
+## Features
+
+- **Workspace management** — create, delete, and share LiveSync workspaces through a web UI
+- **Member management** — invite other users to a workspace; per-database access control in CouchDB
+- **Setup URI generation** — one-click encrypted setup URIs that the Obsidian LiveSync plugin can auto-import (HKDF + AES-256-GCM)
+- **Automatic CouchDB initialization** — single-node setup, CORS, auth enforcement, and size limits configured on first startup
+- **Generic OIDC authentication** — works with any standards-compliant OpenID Connect provider (Keycloak, Authentik, Entra ID, etc.)
 
 ## Container Image
 
@@ -15,9 +23,10 @@ ghcr.io/<owner>/obsidian-sync-manager:latest
 ```bash
 docker run -d \
   -p 8080:8080 \
-  -e COUCHDB_URL=http://couchdb:5984 \
-  -e COUCHDB_USERNAME=admin \
-  -e COUCHDB_PASSWORD=secret \
+  -e COUCHDB__URL=http://couchdb:5984 \
+  -e COUCHDB__USERNAME=admin \
+  -e COUCHDB__PASSWORD=secret \
+  -e COUCHDB__USERSECRET=change-me \
   -e OIDC__Authority=https://idp.example.com/realms/obsidian-sync \
   -e OIDC__ClientId=obsidian-web \
   ghcr.io/<owner>/obsidian-sync-manager:latest
@@ -44,9 +53,10 @@ services:
     ports:
       - "8080:8080"
     environment:
-      COUCHDB_URL: http://couchdb:5984
-      COUCHDB_USERNAME: admin
-      COUCHDB_PASSWORD: secret
+      COUCHDB__URL: http://couchdb:5984
+      COUCHDB__USERNAME: admin
+      COUCHDB__PASSWORD: secret
+      COUCHDB__USERSECRET: change-me
       OIDC__Authority: https://idp.example.com/realms/obsidian-sync
       OIDC__ClientId: obsidian-web
     depends_on:
@@ -60,15 +70,18 @@ volumes:
 
 ## Configuration
 
+All configuration uses the `__` (double-underscore) separator for nested keys.
+
 ### CouchDB
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `COUCHDB_URL` | Base URL of the CouchDB HTTP API | `http://couchdb:5984` |
-| `COUCHDB_USERNAME` | Admin username | `admin` |
-| `COUCHDB_PASSWORD` | Admin password | `secret` |
+| `COUCHDB__URL` | Base URL of the CouchDB HTTP API | `http://couchdb:5984` |
+| `COUCHDB__USERNAME` | Admin username | `admin` |
+| `COUCHDB__PASSWORD` | Admin password | `secret` |
+| `COUCHDB__USERSECRET` | Secret used to derive per-user CouchDB passwords from OIDC `sub` claims | `change-me` |
 
-On startup, the app automatically initializes CouchDB (single-node setup, CORS for Obsidian LiveSync clients, authentication enforcement, and size limits). See [DEVELOPER.md](DEVELOPER.md) for details.
+All four variables are **required**. On startup the app automatically initializes CouchDB (single-node setup, CORS for Obsidian LiveSync clients, authentication enforcement, and size limits). See [DEVELOPER.md](DEVELOPER.md) for details.
 
 ### OIDC
 
@@ -96,4 +109,4 @@ Your OIDC provider must:
 
 ## Development
 
-See [DEVELOPER.md](DEVELOPER.md) for local development setup using .NET Aspire.
+See [DEVELOPER.md](DEVELOPER.md) for local development setup.
