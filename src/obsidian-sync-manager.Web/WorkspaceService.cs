@@ -155,15 +155,8 @@ public sealed partial class WorkspaceService(
     private static partial Regex ValidNameRegex();
 }
 
-public class WorkspaceRegistryDoc
+public class WorkspaceRegistryDoc : CouchDocument
 {
-    [JsonPropertyName("_id")]
-    public string Id { get; set; } = "";
-
-    [JsonPropertyName("_rev")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Rev { get; set; }
-
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
 

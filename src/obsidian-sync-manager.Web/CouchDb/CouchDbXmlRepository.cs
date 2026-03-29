@@ -43,11 +43,8 @@ public sealed class CouchDbXmlRepository(CouchDbClient couchDb) : IXmlRepository
         });
     }
 
-    private class DataProtectionKeyDoc
+    private class DataProtectionKeyDoc : CouchDocument
     {
-        [JsonPropertyName("_id")]
-        public string Id { get; init; } = "";
-
         [JsonPropertyName("xml")]
         public string? Xml { get; init; }
 

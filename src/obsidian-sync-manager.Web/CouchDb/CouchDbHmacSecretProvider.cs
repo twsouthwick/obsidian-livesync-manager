@@ -48,15 +48,8 @@ internal sealed class CouchDbHmacSecretProvider(
         _secretKey = rawKey;
     }
 
-    private class AppSecretDoc
+    private class AppSecretDoc : CouchDocument
     {
-        [JsonPropertyName("_id")]
-        public string Id { get; init; } = "";
-
-        [JsonPropertyName("_rev")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public string? Rev { get; init; }
-
         [JsonPropertyName("encryptedKey")]
         public string? EncryptedKey { get; init; }
     }

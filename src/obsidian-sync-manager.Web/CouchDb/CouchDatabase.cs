@@ -77,14 +77,6 @@ public class CouchDatabaseSecurity(HttpClient httpClient, string name)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public async Task<JsonDocument> GetAsync(CancellationToken cancellationToken = default)
-    {
-        using var response = await httpClient.GetAsync($"/{Uri.EscapeDataString(name)}/_security", cancellationToken);
-        response.EnsureSuccessStatusCode();
-        var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-    }
-
     public async Task SetAsync(IEnumerable<string> memberNames, CancellationToken cancellationToken = default)
     {
         var names = memberNames.ToArray();
