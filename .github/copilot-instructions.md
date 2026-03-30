@@ -8,5 +8,5 @@
 - Blazor pages use `@rendermode InteractiveServer` and `@attribute [Authorize]` with cascading `Task<AuthenticationState>`
 - CouchDB database names: `livesync-{workspaceId}` — workspaceId is a 12-char GUID prefix without hyphens
 - No `appsettings.json` overrides at runtime — all config via environment variables
-- Per-user CouchDB passwords are derived from the OIDC `sub` claim via HMAC-SHA256; setup URIs use PBKDF2 + HKDF + AES-256-GCM encryption
+- Per-user CouchDB passwords are derived from the OIDC `sub` claim via HMAC-SHA256 (key auto-generated and stored in CouchDB); setup URIs use PBKDF2 + HKDF + AES-256-GCM encryption
 - Conventional commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`

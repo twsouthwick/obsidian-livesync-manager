@@ -12,11 +12,7 @@ A self-hosted management layer for [Obsidian LiveSync](https://github.com/vrtmrz
 
 ## Container Image
 
-The container image is published to GitHub Container Registry on every push to `main`:
-
-```
-ghcr.io/<owner>/obsidian-sync-manager:latest
-```
+Published to GitHub Container Registry on every push to `main`.
 
 ### Running the Container
 
@@ -27,13 +23,11 @@ docker run -d \
   -e COUCHDB__EXTERNALURL=https://couchdb.example.com \
   -e COUCHDB__USERNAME=admin \
   -e COUCHDB__PASSWORD=secret \
-  -e COUCHDB__USERSECRET=change-me \
   -e OIDC__Authority=https://idp.example.com/realms/obsidian-sync \
   -e OIDC__ClientId=obsidian-web \
-  ghcr.io/<owner>/obsidian-sync-manager:latest
+  -e OIDC__ClientSecret=my-client-secret \
+  ghcr.io/twsouthwick/obsidian-sync-manager:latest
 ```
-
-Replace `<owner>` with the GitHub user or organization that owns the repository.
 
 ### Docker Compose Example
 
@@ -50,7 +44,7 @@ services:
       - couchdb-data:/opt/couchdb/data
 
   web:
-    image: ghcr.io/<owner>/obsidian-sync-manager:latest
+    image: ghcr.io/twsouthwick/obsidian-sync-manager:latest
     ports:
       - "8080:8080"
     environment:
@@ -58,9 +52,9 @@ services:
       COUCHDB__EXTERNALURL: https://couchdb.example.com
       COUCHDB__USERNAME: admin
       COUCHDB__PASSWORD: secret
-      COUCHDB__USERSECRET: change-me
       OIDC__Authority: https://idp.example.com/realms/obsidian-sync
       OIDC__ClientId: obsidian-web
+      OIDC__ClientSecret: my-client-secret
     depends_on:
       - couchdb
 
@@ -78,13 +72,12 @@ All configuration uses the `__` (double-underscore) separator for nested keys.
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `COUCHDB__URL` | Base URL of the CouchDB HTTP API (used for server-to-CouchDB communication) | `http://couchdb:5984` |
-| `COUCHDB__EXTERNALURL` | Public URL of CouchDB reachable by Obsidian clients. Falls back to `COUCHDB__URL` if not set | `https://couchdb.example.com` |
+| `COUCHDB__URL` | CouchDB HTTP API base URL | `http://couchdb:5984` |
+| `COUCHDB__EXTERNALURL` | Public CouchDB URL for Obsidian clients (falls back to `COUCHDB__URL`) | `https://couchdb.example.com` |
 | `COUCHDB__USERNAME` | Admin username | `admin` |
 | `COUCHDB__PASSWORD` | Admin password | `secret` |
-| `COUCHDB__USERSECRET` | Secret used to derive per-user CouchDB passwords from OIDC `sub` claims | `change-me` |
 
-`COUCHDB__URL`, `COUCHDB__USERNAME`, `COUCHDB__PASSWORD`, and `COUCHDB__USERSECRET` are **required**. `COUCHDB__EXTERNALURL` is optional — set it when CouchDB is behind a reverse proxy or on a different public hostname than the internal URL. On startup the app automatically initializes CouchDB (single-node setup, CORS for Obsidian LiveSync clients, authentication enforcement, and size limits). See [DEVELOPER.md](DEVELOPER.md) for details.
+`COUCHDB__URL`, `COUCHDB__USERNAME`, and `COUCHDB__PASSWORD` are **required**. `COUCHDB__EXTERNALURL` is optional — set it when CouchDB is behind a reverse proxy or on a different public hostname.
 
 ### OIDC
 
@@ -92,14 +85,14 @@ All configuration uses the `__` (double-underscore) separator for nested keys.
 |----------|-------------|---------|
 | `OIDC__Authority` | Issuer / authority URL | `https://idp.example.com/realms/obsidian-sync` |
 | `OIDC__ClientId` | OIDC client identifier | `obsidian-web` |
+| `OIDC__ClientSecret` | OIDC client secret | `my-client-secret` |
 | `OIDC__Groups__Admins` | Group name for admin access | `obsidian-admins` (default) |
 | `OIDC__Groups__Users` | Group name for user access | `obsidian-users` (default) |
 
 Your OIDC provider must:
 
-- Support the **Authorization Code** flow with a public client (no client secret)
+- Support the **Authorization Code** flow with a confidential client
 - Include a `groups` claim in ID tokens containing the configured group names
-- Allow the redirect URIs used by the web frontend
 
 ### Authorization Policies
 
