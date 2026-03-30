@@ -14,6 +14,9 @@ updates:
       microsoft-fluentui:
         patterns:
           - "Microsoft.FluentUI.*"
+      open-telemetry:
+        patterns:
+          - "OpenTelemetry.*"
 
   - package-ecosystem: github-actions
     directory: /
