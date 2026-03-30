@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.DataProtection.Repositories;
 using Microsoft.Extensions.Options;
 using Swick.Obsidian.SyncManager.Web.CouchDb;
@@ -29,11 +30,13 @@ public static class CouchDbExtensions
 
             builder.Services.AddHttpClient<CouchDbClient>(ConfigureHttpClient);
 
-            builder.Services.AddTransient<CouchDbXmlRepository>();
-            builder.Services.AddSingleton<IXmlRepository>(sp => sp.GetRequiredService<CouchDbXmlRepository>());
+            builder.Services.AddSingleton<CouchDbXmlRepository>();
 
             builder.Services.AddDataProtection()
                 .SetApplicationName("obsidian-sync-manager");
+
+            builder.Services.AddOptions<KeyManagementOptions>()
+                .Configure<CouchDbXmlRepository>((options, repo) => options.XmlRepository = repo);
 
             builder.Services.AddSingleton<CouchDbHmacSecretProvider>();
             builder.Services.AddSingleton<IUserSecretProvider>(sp => sp.GetRequiredService<CouchDbHmacSecretProvider>());
