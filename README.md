@@ -109,6 +109,21 @@ Your OIDC provider must:
 | `Admin` | `OIDC__Groups__Admins` group |
 | `User` | `OIDC__Groups__Users` or `OIDC__Groups__Admins` group |
 
+### Data Protection
+
+The HMAC secret and workspace E2EE passphrases are encrypted at rest using ASP.NET Core Data Protection. The key ring is stored in CouchDB. By default, the key ring XML is unencrypted — to encrypt it, provide a PKCS#12 certificate:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DataProtection__CertificatePath` | Path to a `.pfx` / `.p12` file | `/etc/dp-cert/keystore.p12` |
+| `DataProtection__CertificatePassword` | Password for the PKCS#12 file | `my-cert-password` |
+
+When set, Data Protection keys stored in CouchDB are encrypted with the certificate's public key. A CouchDB-only compromise cannot decrypt the key ring without the certificate's private key.
+
+> **Rotation**: ASP.NET Core Data Protection can read keys encrypted with previous certificates as long as those key ring entries remain in CouchDB. New keys are encrypted with the current certificate. Restart the app after replacing the certificate file.
+
+For Kubernetes deployments using cert-manager, see [docs/DEPLOY.md](docs/DEPLOY.md).
+
 ---
 
 ## Development

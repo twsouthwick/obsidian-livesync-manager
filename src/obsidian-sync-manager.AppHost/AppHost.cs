@@ -40,6 +40,7 @@ builder.AddProject<Projects.obsidian_sync_manager_Web>("obsidian-manager")
     .WithEnvironment("OIDC__Authority", ReferenceExpression.Create($"{keycloak.GetEndpoint("https")}/realms/obsidian-sync"))
     .WithEnvironment("OIDC__ClientId", "obsidian-web")
     .WithEnvironment("OIDC__ClientSecret", oidcClientSecret)
+    .WithDataProtectionDevCertificate()
     .WithUrlForEndpoint("http", url =>
     {
         url.DisplayText = "http";

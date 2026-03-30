@@ -50,7 +50,7 @@ internal sealed class CouchDbHmacSecretProvider(
 
     private class AppSecretDoc : CouchDbDocument
     {
-        [JsonPropertyName("encryptedKey")]
+        [JsonPropertyName("value")]
         public string? EncryptedKey { get; init; }
     }
 }

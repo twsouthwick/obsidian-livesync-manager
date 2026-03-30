@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Options;
 using Swick.Obsidian.SyncManager.Web.CouchDb;
 
@@ -10,9 +11,12 @@ namespace Swick.Obsidian.SyncManager.Web;
 
 public sealed partial class WorkspaceService(
     CouchDbClient couchDb,
+    IDataProtectionProvider dataProtectionProvider,
     IOptions<CouchDbOptions> couchDbOptions,
     IUserSecretProvider userSecretProvider)
 {
+    private readonly IDataProtector _protector = dataProtectionProvider.CreateProtector("WorkspaceService");
+
     private CouchDbDatabase Registry => couchDb.Database("workspace-registry");
 
     public static bool IsValidWorkspaceName(string name) =>
@@ -22,22 +26,36 @@ public sealed partial class WorkspaceService(
     {
         await foreach (var d in Registry.GetAllAsync<WorkspaceRegistryDoc>(cancellationToken))
         {
-            if (string.IsNullOrEmpty(d.DatabaseName))
-                continue;
+            if (!string.IsNullOrEmpty(d.DatabaseName))
+            {
+                var info = await GetWorkspaceInfoAsync(d, cancellationToken);
 
-            var members = await couchDb.Database(d.DatabaseName).Security.GetAsync(cancellationToken);
-        
-            if (members.IsMember(username))
-                yield return new WorkspaceInfo(d.Id, d.Name, d.DatabaseName, members, d.E2eePassphrase);
+                if (info.Members.IsMember(username))
+                {
+                    yield return info;
+                }
+            }
         }
     }
 
     public async Task<WorkspaceInfo?> GetAsync(string workspaceId, CancellationToken cancellationToken = default)
     {
         var doc = await Registry.GetAsync<WorkspaceRegistryDoc>(workspaceId, cancellationToken);
-        if (doc is null) return null;
+
+        if (doc is null)
+        {
+            return null;
+        }
+
+        return await GetWorkspaceInfoAsync(doc, cancellationToken);
+    }
+
+    private async Task<WorkspaceInfo> GetWorkspaceInfoAsync(WorkspaceRegistryDoc doc, CancellationToken cancellationToken)
+    {
         var members = await couchDb.Database(doc.DatabaseName).Security.GetAsync(cancellationToken);
-        return new WorkspaceInfo(doc.Id, doc.Name, doc.DatabaseName, members, doc.E2eePassphrase);
+        var decrypted = _protector.CreateProtector(doc.Id).Unprotect(doc.Passphrase);
+
+        return new WorkspaceInfo(doc.Id, doc.Name, doc.DatabaseName, members, decrypted);
     }
 
     public async Task EnsureCurrentUserAsync(string username, string sub, CancellationToken cancellationToken = default)
@@ -56,13 +74,14 @@ public sealed partial class WorkspaceService(
         if (!await db.CreateIfNotExistsAsync(cancellationToken))
             return (false, null);
 
-var securityRecord = new CouchDbSecurityRecord(
-            new UserRecord([username], []),
-            new UserRecord([], [])
-        );
+        var securityRecord = new CouchDbSecurityRecord(
+                    new UserRecord([username], []),
+                    new UserRecord([], [])
+                );
         await db.Security.SetAsync(securityRecord, cancellationToken);
 
         var e2eePassphrase = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        var encryptedPassphrase = _protector.CreateProtector(workspaceId).Protect(e2eePassphrase);
 
         var doc = new WorkspaceRegistryDoc
         {
@@ -70,11 +89,11 @@ var securityRecord = new CouchDbSecurityRecord(
             Name = name,
             DatabaseName = dbName,
             CreatedBy = username,
-            E2eePassphrase = e2eePassphrase,
+            Passphrase = encryptedPassphrase,
         };
         await Registry.PutAsync(doc.Id, doc, cancellationToken);
 
-        return (true, new WorkspaceInfo(workspaceId, name, dbName, securityRecord, doc.E2eePassphrase));
+        return (true, new WorkspaceInfo(workspaceId, name, dbName, securityRecord, doc.Passphrase));
     }
 
     public async Task<bool> DeleteAsync(string workspaceId, string username, CancellationToken cancellationToken = default)
@@ -192,19 +211,20 @@ var securityRecord = new CouchDbSecurityRecord(
 
     [GeneratedRegex(@"^[a-z0-9][a-z0-9-]*$")]
     private static partial Regex ValidNameRegex();
-}
 
-public class WorkspaceRegistryDoc : CouchDbDocument
-{
-    [JsonPropertyName("name")]
-    public string Name { get; set; } = "";
 
-    [JsonPropertyName("databaseName")]
-    public string DatabaseName { get; set; } = "";
+    private sealed class WorkspaceRegistryDoc : CouchDbDocument
+    {
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = "";
 
-    [JsonPropertyName("createdBy")]
-    public string CreatedBy { get; set; } = "";
+        [JsonPropertyName("databaseName")]
+        public string DatabaseName { get; set; } = "";
 
-    [JsonPropertyName("e2eePassphrase")]
-    public string E2eePassphrase { get; set; } = "";
+        [JsonPropertyName("createdBy")]
+        public string CreatedBy { get; set; } = "";
+
+        [JsonPropertyName("passphrase")]
+        public string Passphrase { get; set; } = "";
+    }
 }

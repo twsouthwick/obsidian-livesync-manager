@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Net.Http.Headers;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
@@ -32,8 +33,16 @@ public static class CouchDbExtensions
 
             builder.Services.AddSingleton<CouchDbXmlRepository>();
 
-            builder.Services.AddDataProtection()
+            var dpBuilder = builder.Services.AddDataProtection()
                 .SetApplicationName("obsidian-sync-manager");
+
+            var certPath = builder.Configuration["DataProtection:CertificatePath"];
+            if (!string.IsNullOrEmpty(certPath))
+            {
+                var certPassword = builder.Configuration["DataProtection:CertificatePassword"];
+                var cert = X509CertificateLoader.LoadPkcs12FromFile(certPath, certPassword);
+                dpBuilder.ProtectKeysWithCertificate(cert);
+            }
 
             builder.Services.AddOptions<KeyManagementOptions>()
                 .Configure<CouchDbXmlRepository>((options, repo) => options.XmlRepository = repo);
