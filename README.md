@@ -79,6 +79,14 @@ All configuration uses the `__` (double-underscore) separator for nested keys.
 
 `COUCHDB__URL`, `COUCHDB__USERNAME`, and `COUCHDB__PASSWORD` are **required**. `COUCHDB__EXTERNALURL` is optional — set it when CouchDB is behind a reverse proxy or on a different public hostname.
 
+### Reverse Proxy
+
+If the application is behind a reverse proxy (e.g. Nginx, Caddy, Traefik), set the following environment variable so ASP.NET Core correctly handles `X-Forwarded-For`, `X-Forwarded-Proto`, and related headers:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `ASPNETCORE_FORWARDEDHEADERS_ENABLED` | Enable forwarded headers middleware | `true` |
+
 ### OIDC
 
 | Variable | Description | Example |
