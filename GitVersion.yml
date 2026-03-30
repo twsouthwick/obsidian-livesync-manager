@@ -1,9 +1,10 @@
-mode: ContinuousDeployment
+mode: ContinuousDelivery
 branches:
   main:
     regex: ^(main|master)$
     increment: Patch
     is-main-branch: true
+    label: ci
   feature:
     regex: ^features?[/-]
     increment: Inherit
