@@ -1,8 +1,16 @@
 @inject NavigationManager Navigation
 
+@if (RendererInfo.IsInteractive)
+{
+    <p>Your session has expired. <a href="/login?returnUrl=@Uri.EscapeDataString(Navigation.Uri)">Log in again</a>.</p>
+}
+
 @code {
     protected override void OnInitialized()
     {
-        Navigation.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(Navigation.Uri)}", forceLoad: true);
+        if (!RendererInfo.IsInteractive)
+        {
+            Navigation.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(Navigation.Uri)}", forceLoad: true);
+        }
     }
 }

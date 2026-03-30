@@ -51,7 +51,8 @@ public static class AuthenticationExtensions
         public void MapAuthEndpoints()
         {
             app.MapGet("/login", (string? returnUrl) =>
-                TypedResults.Challenge(new AuthenticationProperties { RedirectUri = returnUrl ?? "/" }));
+                TypedResults.Challenge(new AuthenticationProperties { RedirectUri = returnUrl ?? "/" }))
+                .AllowAnonymous();
 
             app.MapPost("/logout", async (HttpContext context) =>
             {
