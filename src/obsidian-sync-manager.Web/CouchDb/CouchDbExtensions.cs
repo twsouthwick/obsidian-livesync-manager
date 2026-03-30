@@ -28,9 +28,17 @@ public static class CouchDbExtensions
                 dpBuilder.ProtectKeysWithCertificate(cert);
             }
 
-            builder.Services.AddSingleton<T>();
-            builder.Services.AddOptions<KeyManagementOptions>()
-                .Configure<T>((options, repo) => options.XmlRepository = repo);
+            var keyStorePath = builder.Configuration["DataProtection:KeyStorePath"];
+            if (!string.IsNullOrEmpty(keyStorePath))
+            {
+                dpBuilder.PersistKeysToFileSystem(new DirectoryInfo(keyStorePath));
+            }
+            else
+            {
+                builder.Services.AddSingleton<T>();
+                builder.Services.AddOptions<KeyManagementOptions>()
+                    .Configure<T>((options, repo) => options.XmlRepository = repo);
+            }
         }
 
         public void AddCouchDb()

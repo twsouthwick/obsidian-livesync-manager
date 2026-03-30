@@ -113,5 +113,30 @@ cert-manager renews the certificate automatically based on `renewBefore`. When t
 
 - Kubernetes updates the mounted volume (may take up to 60s depending on kubelet sync period)
 - The pod must be restarted to load the new certificate — use a rolling restart or a sidecar like [reloader](https://github.com/stakater/Reloader) to automate this
-- Existing Data Protection keys encrypted with the previous certificate remain readable — the old key ring entries in CouchDB still decrypt successfully as long as the key ring XML is intact
+- Existing Data Protection keys encrypted with the previous certificate remain readable — the old key ring entries still decrypt successfully as long as the key ring XML is intact
 - New keys will be encrypted with the renewed certificate
+
+## Filesystem Key Storage
+
+By default, Data Protection keys are stored in the CouchDB `data-protection-keys` database. To store them on the filesystem instead, set the `DataProtection__KeyStorePath` environment variable to a directory path. This is useful when you want to keep key material outside of CouchDB — for example, on an encrypted volume or a persistent volume that is backed up separately.
+
+When `DataProtection__KeyStorePath` is set, the CouchDB `data-protection-keys` database is not used. Certificate encryption (`DataProtection__CertificatePath`) still applies regardless of storage backend.
+
+### Kubernetes example
+
+```yaml
+volumes:
+  - name: dp-keys
+    persistentVolumeClaim:
+      claimName: dp-keys-pvc
+containers:
+  - name: web
+    volumeMounts:
+      - name: dp-keys
+        mountPath: /var/lib/dp-keys
+    env:
+      - name: DataProtection__KeyStorePath
+        value: /var/lib/dp-keys
+```
+
+> **Warning:** Loss of this directory means all Data Protection–encrypted values (HMAC secret, E2EE passphrases) become unrecoverable. Ensure the volume is backed up.
