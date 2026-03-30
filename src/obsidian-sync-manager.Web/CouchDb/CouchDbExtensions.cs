@@ -48,15 +48,13 @@ public static class CouchDbExtensions
                 .ValidateDataAnnotations()
                 .ValidateOnStart();
 
-            void ConfigureHttpClient(IServiceProvider sp, HttpClient client)
+            builder.Services.AddHttpClient<CouchDbClient>((sp, client) =>
             {
                 var options = sp.GetRequiredService<IOptions<CouchDbOptions>>().Value;
                 client.BaseAddress = options.Url;
                 var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{options.Username}:{options.Password}"));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
-            }
-
-            builder.Services.AddHttpClient<CouchDbClient>(ConfigureHttpClient);
+            });
 
             builder.AddApplicationDataProtection<CouchDbXmlRepository>();
 
