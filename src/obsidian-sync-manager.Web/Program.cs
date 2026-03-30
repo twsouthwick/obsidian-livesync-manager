@@ -1,5 +1,6 @@
 using Swick.Obsidian.SyncManager.Web;
 using Swick.Obsidian.SyncManager.Web.Components;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.FluentUI.AspNetCore.Components;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,7 +18,16 @@ builder.Services.AddOutputCache();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.All;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {
