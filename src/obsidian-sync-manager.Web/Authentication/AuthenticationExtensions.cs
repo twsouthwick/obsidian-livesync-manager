@@ -9,6 +9,9 @@ namespace Swick.Obsidian.SyncManager.Web;
 
 public static class AuthenticationExtensions
 {
+    public const string AdminPolicy = "Admin";
+    public const string UserPolicy = "User";
+
     extension(IHostApplicationBuilder builder)
     {
         public void AddApplicationAuthentication()
@@ -40,8 +43,8 @@ public static class AuthenticationExtensions
                 .Configure<IOptions<OidcGroupOptions>>((options, groupOptions) =>
                 {
                     var groups = groupOptions.Value;
-                    options.AddPolicy("Admin", policy => policy.RequireRole(groups.Admins));
-                    options.AddPolicy("User", policy => policy.RequireRole(groups.Users, groups.Admins));
+                    options.AddPolicy(AdminPolicy, policy => policy.RequireRole(groups.Admins));
+                    options.AddPolicy(UserPolicy, policy => policy.RequireRole(groups.Users, groups.Admins));
                 });
         }
     }

@@ -97,6 +97,23 @@
       "groups": [
         "obsidian-users"
       ]
+    },
+    {
+      "username": "charlie",
+      "email": "charlie@example.com",
+      "firstName": "Charlie",
+      "lastName": "Brown",
+      "enabled": true,
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "charlie",
+          "temporary": false
+        }
+      ],
+      "groups": []
     }
   ]
 }

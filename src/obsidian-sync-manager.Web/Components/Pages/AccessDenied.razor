@@ -1,0 +1,19 @@
+@page "/Account/AccessDenied"
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@layout Swick.Obsidian.SyncManager.Web.Components.Layout.EmptyLayout
+
+<PageTitle>Access Denied</PageTitle>
+
+<FluentStack Orientation="Orientation.Vertical" HorizontalAlignment="HorizontalAlignment.Center"
+             Style="margin-top: 20vh; text-align: center;">
+    <FluentIcon Value="@(new Icons.Regular.Size48.ShieldError())" Color="Color.Error" />
+    <h1>Access Denied</h1>
+    <p style="max-width: 480px;">Your account does not have permission to access this application. Contact an administrator to request access.</p>
+    <form method="post" action="/logout">
+        <AntiforgeryToken />
+        <FluentButton Type="ButtonType.Submit" Appearance="Appearance.Accent"
+                      IconStart="@(new Icons.Regular.Size20.SignOut())">
+            Sign out
+        </FluentButton>
+    </form>
+</FluentStack>

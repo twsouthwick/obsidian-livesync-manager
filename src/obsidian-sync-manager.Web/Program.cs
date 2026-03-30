@@ -43,7 +43,7 @@ app.UseOutputCache();
 app.MapStaticAssets();
 
 app.MapRazorComponents<App>()
-    .RequireAuthorization()
+    .RequireAuthorization(AuthenticationExtensions.UserPolicy)
     .AddInteractiveServerRenderMode();
 
 app.MapAuthEndpoints();
