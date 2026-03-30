@@ -62,7 +62,17 @@ public static class AuthenticationExtensions
                     properties.SetParameter("id_token_hint", idToken);
 
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, properties);
+
+                try
+                {
+                    await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, properties);
+                }
+                catch (InvalidOperationException)
+                {
+                    // OIDC provider may not expose an end_session_endpoint.
+                    // Cookie is already cleared; redirect home.
+                    context.Response.Redirect("/");
+                }
             }).RequireAuthorization();
         }
     }
