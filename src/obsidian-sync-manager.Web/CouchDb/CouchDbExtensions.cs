@@ -14,6 +14,25 @@ public static class CouchDbExtensions
 {
     extension(IHostApplicationBuilder builder)
     {
+        private void AddApplicationDataProtection<T>()
+            where T : class, IXmlRepository
+        {
+            var dpBuilder = builder.Services.AddDataProtection()
+                .SetApplicationName("obsidian-sync-manager");
+
+            var certPath = builder.Configuration["DataProtection:CertificatePath"];
+            if (!string.IsNullOrEmpty(certPath))
+            {
+                var certPassword = builder.Configuration["DataProtection:CertificatePassword"];
+                var cert = X509CertificateLoader.LoadPkcs12FromFile(certPath, certPassword);
+                dpBuilder.ProtectKeysWithCertificate(cert);
+            }
+
+            builder.Services.AddSingleton<T>();
+            builder.Services.AddOptions<KeyManagementOptions>()
+                .Configure<T>((options, repo) => options.XmlRepository = repo);
+        }
+
         public void AddCouchDb()
         {
             builder.Services.AddOptions<CouchDbOptions>()
@@ -31,21 +50,7 @@ public static class CouchDbExtensions
 
             builder.Services.AddHttpClient<CouchDbClient>(ConfigureHttpClient);
 
-            builder.Services.AddSingleton<CouchDbXmlRepository>();
-
-            var dpBuilder = builder.Services.AddDataProtection()
-                .SetApplicationName("obsidian-sync-manager");
-
-            var certPath = builder.Configuration["DataProtection:CertificatePath"];
-            if (!string.IsNullOrEmpty(certPath))
-            {
-                var certPassword = builder.Configuration["DataProtection:CertificatePassword"];
-                var cert = X509CertificateLoader.LoadPkcs12FromFile(certPath, certPassword);
-                dpBuilder.ProtectKeysWithCertificate(cert);
-            }
-
-            builder.Services.AddOptions<KeyManagementOptions>()
-                .Configure<CouchDbXmlRepository>((options, repo) => options.XmlRepository = repo);
+            builder.AddApplicationDataProtection<CouchDbXmlRepository>();
 
             builder.Services.AddSingleton<CouchDbHmacSecretProvider>();
             builder.Services.AddSingleton<IUserSecretProvider>(sp => sp.GetRequiredService<CouchDbHmacSecretProvider>());
