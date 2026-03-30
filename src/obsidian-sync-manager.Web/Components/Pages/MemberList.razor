@@ -1,51 +1,69 @@
-@rendermode InteractiveServer
 @using System.Collections.Immutable
 @using Swick.Obsidian.SyncManager.Web.CouchDb
 
-@if (AllNames.Count > 0)
+@if (Security.Admins.Names.Count > 0)
 {
-    <ul class="list-group mb-3">
-        @foreach (var name in AllNames)
+    <h4>Admins</h4>
+    <FluentStack Orientation="Orientation.Vertical" VerticalGap="4" Style="margin-bottom: 1rem;">
+        @foreach (var name in Security.Admins.Names)
         {
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <span>
-                    <span class="bi bi-person me-1" aria-hidden="true"></span>
-                    @name
-                    @if (Security.IsAdmin(name))
-                    {
-                        <span class="badge bg-primary ms-1">admin</span>
-                    }
-                    @if (name == CurrentUsername)
-                    {
-                        <span class="badge bg-secondary ms-1">you</span>
-                    }
-                </span>
-                @if (name != CurrentUsername)
-                {
-                    <button class="btn btn-sm btn-outline-danger" @onclick="() => OnRemove.InvokeAsync(name)">
-                        <span class="bi bi-x-lg" aria-hidden="true"></span> Remove
-                    </button>
-                }
-            </li>
+            @renderRow(name)
         }
-    </ul>
+    </FluentStack>
 }
 
-<div class="input-group" style="max-width: 400px;">
-    <input type="text" class="form-control" placeholder="Username to add" @bind="newUsername"
-        @bind:event="oninput" disabled="@adding" />
-    <button class="btn btn-outline-primary" type="button" @onclick="HandleAdd" disabled="@(adding || string.IsNullOrWhiteSpace(newUsername))">
-        @(adding ? "Adding..." : "Add Member")
-    </button>
-</div>
+@if (MemberOnly.Count > 0)
+{
+    <h4>Members</h4>
+    <FluentStack Orientation="Orientation.Vertical" VerticalGap="4" Style="margin-bottom: 1rem;">
+        @foreach (var name in MemberOnly)
+        {
+            @renderRow(name)
+        }
+    </FluentStack>
+}
+
+<FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" Style="max-width: 400px;">
+    <FluentTextField @bind-Value="newUsername" Placeholder="Username to add" Disabled="@adding"
+                     Style="flex: 1;" />
+    <FluentButton Appearance="Appearance.Outline" @onclick="HandleAdd"
+                  Disabled="@(adding || string.IsNullOrWhiteSpace(newUsername))"
+                  Loading="@adding">
+        Add Member
+    </FluentButton>
+</FluentStack>
 
 @code {
-    [Parameter, EditorRequired] public CouchDbSecurityRecord Security { get; set; } = default!;
-    [Parameter, EditorRequired] public string CurrentUsername { get; set; } = default!;
-    [Parameter] public EventCallback<string> OnAdd { get; set; }
-    [Parameter] public EventCallback<string> OnRemove { get; set; }
+    RenderFragment renderRow(string name) => @<FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween"
+                     VerticalAlignment="VerticalAlignment.Center"
+                     Style="padding: 0.5rem 0; border-bottom: 1px solid var(--neutral-stroke-divider-rest);">
+            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="8">
+                <FluentIcon Value="@(new Icons.Regular.Size20.Person())" />
+                <span>@name</span>
+                @if (name == CurrentUsername)
+                {
+                    <FluentBadge>you</FluentBadge>
+                }
+            </FluentStack>
+            @if (name != CurrentUsername)
+            {
+                <FluentButton Appearance="Appearance.Outline" Size="ButtonSize.Small"
+                              IconStart="@(new Icons.Regular.Size16.Dismiss())"
+                              @onclick="() => HandleRemove(name)"
+                              Style="color: var(--error);">
+                    Remove
+                </FluentButton>
+            }
+        </FluentStack>;
 
-    private ImmutableList<string> AllNames => Security.Admins.Names.Union(Security.Members.Names).ToImmutableList();
+    [Parameter, EditorRequired] public string WorkspaceId { get; set; } = default!;
+    [Parameter, EditorRequired] public string CurrentUsername { get; set; } = default!;
+    [Parameter, EditorRequired] public CouchDbSecurityRecord Security { get; set; } = default!;
+
+    [Inject] private WorkspaceService WorkspaceSvc { get; set; } = default!;
+    [Inject] private IToastService ToastService { get; set; } = default!;
+
+    private ImmutableList<string> MemberOnly => Security.Members.Names.Except(Security.Admins.Names).ToImmutableList();
 
     private string? newUsername;
     private bool adding;
@@ -54,8 +72,40 @@
     {
         if (string.IsNullOrWhiteSpace(newUsername)) return;
         adding = true;
-        await OnAdd.InvokeAsync(newUsername.Trim());
+        var target = newUsername.Trim();
+
+        if (!await WorkspaceSvc.AddMemberAsync(WorkspaceId, CurrentUsername, target))
+        {
+            ToastService.ShowError($"Could not add \"{target}\". Make sure they have logged in at least once.");
+        }
+        else
+        {
+            ToastService.ShowSuccess($"Added \"{target}\" to the workspace.");
+        }
+
+        await RefreshSecurityAsync();
         newUsername = null;
         adding = false;
+    }
+
+    private async Task HandleRemove(string targetUsername)
+    {
+        if (!await WorkspaceSvc.RemoveMemberAsync(WorkspaceId, CurrentUsername, targetUsername))
+        {
+            ToastService.ShowError($"Could not remove \"{targetUsername}\". Cannot remove the last member.");
+        }
+        else
+        {
+            ToastService.ShowSuccess($"Removed \"{targetUsername}\" from the workspace.");
+        }
+
+        await RefreshSecurityAsync();
+    }
+
+    private async Task RefreshSecurityAsync()
+    {
+        var workspace = await WorkspaceSvc.GetAsync(WorkspaceId);
+        if (workspace is not null)
+            Security = workspace.Members;
     }
 }

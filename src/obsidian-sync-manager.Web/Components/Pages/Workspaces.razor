@@ -1,16 +1,20 @@
 @page "/workspaces"
-@rendermode InteractiveServer
+@page "/"
 @inject WorkspaceService WorkspaceSvc
+@inject IToastService ToastService
+@inject IDialogService DialogService
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
 <PageTitle>Workspaces</PageTitle>
 
-<div class="header-row">
-    <h1>Workspaces</h1>
-    <button class="btn btn-primary" @onclick="() => showCreateForm = true" disabled="@showCreateForm">
-        <span class="bi bi-plus-lg" aria-hidden="true"></span> New Workspace
-    </button>
-</div>
+<FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween"
+             VerticalAlignment="VerticalAlignment.Center" Style="margin-bottom: 1.5rem;">
+    <h1 style="margin: 0;">Workspaces</h1>
+    <FluentButton Appearance="Appearance.Accent" @onclick="() => showCreateForm = true" Disabled="@showCreateForm"
+                  IconStart="@(new Icons.Regular.Size20.Add())">
+        New Workspace
+    </FluentButton>
+</FluentStack>
 
 @if (showCreateForm)
 {
@@ -19,11 +23,11 @@
 
 @if (workspaces is null)
 {
-    <p class="text-muted">Loading...</p>
+    <FluentProgress />
 }
 else if (workspaces.Count == 0 && !showCreateForm)
 {
-    <EmptyState Title="No workspaces yet" Icon="bi-folder2-open">
+    <EmptyState Title="No workspaces yet" Icon="@(new Icons.Regular.Size48.Folder())">
         Create a workspace to start syncing your Obsidian vault.
     </EmptyState>
 }
@@ -32,19 +36,9 @@ else
     <WorkspaceTable Workspaces="workspaces" OnDelete="DeleteWorkspace" />
 }
 
-<ConfirmDialog @ref="confirmDialog" Title="Delete Workspace"
-    ConfirmText="Delete" ConfirmButtonClass="btn-danger" />
-
-@if (errorMessage is not null)
-{
-    <div class="alert alert-danger mt-3" role="alert">@errorMessage</div>
-}
-
 @code {
     private List<WorkspaceInfo>? workspaces;
     private bool showCreateForm;
-    private string? errorMessage;
-    private ConfirmDialog confirmDialog = default!;
 
     [CascadingParameter] private Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState> AuthStateTask { get; set; } = default!;
 
@@ -60,23 +54,27 @@ else
     private async Task OnWorkspaceCreated()
     {
         showCreateForm = false;
-        errorMessage = null;
         workspaces = await WorkspaceSvc.GetAllAsync(Username).OrderBy(w => w.Name).ToListAsync();
+        ToastService.ShowSuccess("Workspace created successfully.");
     }
 
     private async Task DeleteWorkspace(WorkspaceInfo workspace)
     {
-        var confirmed = await confirmDialog.ShowAsync($"Delete workspace \"{workspace.Name}\"? This will permanently remove the CouchDB database and all synced data.");
-        if (!confirmed) return;
+        var dialog = await DialogService.ShowConfirmationAsync(
+            $"Delete workspace \"{workspace.Name}\"? This will permanently remove the CouchDB database and all synced data.",
+            "Delete", "Cancel", "Delete Workspace");
+
+        var result = await dialog.Result;
+        if (result.Cancelled) return;
 
         if (await WorkspaceSvc.DeleteAsync(workspace.Id, Username))
         {
             workspaces?.Remove(workspace);
-            errorMessage = null;
+            ToastService.ShowSuccess($"Workspace \"{workspace.Name}\" deleted.");
         }
         else
         {
-            errorMessage = $"Failed to delete workspace \"{workspace.Name}\".";
+            ToastService.ShowError($"Failed to delete workspace \"{workspace.Name}\".");
         }
     }
 }

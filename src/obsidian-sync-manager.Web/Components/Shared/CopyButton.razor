@@ -1,16 +1,10 @@
-@rendermode InteractiveServer
 @inject IJSRuntime JS
 
-<button class="btn btn-sm @ButtonClass" @onclick="CopyToClipboard" title="Copy to clipboard">
-    @if (copied)
-    {
-        <span class="bi bi-check-lg" aria-hidden="true"></span> @CopiedLabel
-    }
-    else
-    {
-        <span class="bi bi-clipboard" aria-hidden="true"></span> @Label
-    }
-</button>
+<FluentButton Appearance="Appearance.Outline" Size="ButtonSize.Small" @onclick="CopyToClipboard"
+              Title="Copy to clipboard"
+              IconStart="@(copied ? new Icons.Regular.Size16.Checkmark() : new Icons.Regular.Size16.Copy())">
+    @(copied ? CopiedLabel : Label)
+</FluentButton>
 
 @code {
     private bool copied;
@@ -18,7 +12,6 @@
     [Parameter, EditorRequired] public string Text { get; set; } = default!;
     [Parameter] public string Label { get; set; } = "Copy";
     [Parameter] public string CopiedLabel { get; set; } = "Copied!";
-    [Parameter] public string ButtonClass { get; set; } = "btn-outline-secondary";
 
     private async Task CopyToClipboard()
     {

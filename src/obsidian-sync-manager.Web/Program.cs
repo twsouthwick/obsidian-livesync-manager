@@ -1,5 +1,6 @@
 using Swick.Obsidian.SyncManager.Web;
 using Swick.Obsidian.SyncManager.Web.Components;
+using Microsoft.FluentUI.AspNetCore.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +10,8 @@ builder.AddApplicationAuthentication();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddFluentUIComponents();
 
 builder.Services.AddOutputCache();
 builder.Services.AddProblemDetails();

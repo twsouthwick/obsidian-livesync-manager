@@ -1,14 +1,15 @@
-<div class="empty-state">
-    <span class="empty-state-icon bi @Icon" aria-hidden="true"></span>
-    <h5 class="empty-state-title">@Title</h5>
+<FluentStack Orientation="Orientation.Vertical" HorizontalAlignment="HorizontalAlignment.Center"
+             Style="padding: 3rem 1rem; color: var(--neutral-foreground-hint); text-align: center;">
+    <FluentIcon Value="@Icon" Style="font-size: 3rem; margin-bottom: 1rem;" />
+    <h5>@Title</h5>
     @if (ChildContent is not null)
     {
-        <p class="empty-state-description">@ChildContent</p>
+        <p style="max-width: 28rem;">@ChildContent</p>
     }
-</div>
+</FluentStack>
 
 @code {
     [Parameter, EditorRequired] public string Title { get; set; } = default!;
-    [Parameter] public string Icon { get; set; } = "bi-inbox";
+    [Parameter] public Icon Icon { get; set; } = new Icons.Regular.Size48.Box();
     [Parameter] public RenderFragment? ChildContent { get; set; }
 }

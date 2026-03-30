@@ -1,30 +1,30 @@
-@rendermode InteractiveServer
 @inject WorkspaceService WorkspaceSvc
 
-<div class="card mb-3">
-    <div class="card-body">
-        <h5 class="card-title">Create New Workspace</h5>
-        <EditForm Model="model" OnValidSubmit="Submit" FormName="create-workspace">
-            <DataAnnotationsValidator />
-            <div class="input-group">
-                <input type="text" class="form-control" placeholder="my-vault" @bind="model.Name"
-                    @bind:event="oninput" disabled="@submitting" />
-                <button class="btn btn-success" type="submit" disabled="@submitting">
-                    @(submitting ? "Creating..." : "Create")
-                </button>
-                <button class="btn btn-outline-secondary" type="button" @onclick="OnCancel" disabled="@submitting">
-                    Cancel
-                </button>
-            </div>
-            <ValidationMessage For="() => model.Name" />
-            @if (error is not null)
-            {
-                <div class="text-danger mt-2">@error</div>
-            }
-            <small class="form-text text-muted">Lowercase letters, numbers, and hyphens only.</small>
-        </EditForm>
-    </div>
-</div>
+<FluentCard Style="margin-bottom: 1rem; padding: 1.5rem;">
+    <h5 style="margin-top: 0;">Create New Workspace</h5>
+    <EditForm Model="model" OnValidSubmit="Submit" FormName="create-workspace">
+        <DataAnnotationsValidator />
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Top">
+            <FluentTextField @bind-Value="model.Name" Placeholder="my-vault" Disabled="@submitting"
+                             Style="flex: 1;" />
+            <FluentButton Type="ButtonType.Submit" Appearance="Appearance.Accent" Disabled="@submitting"
+                          Loading="@submitting">
+                Create
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Outline" @onclick="OnCancel" Disabled="@submitting">
+                Cancel
+            </FluentButton>
+        </FluentStack>
+        <ValidationMessage For="() => model.Name" />
+        @if (error is not null)
+        {
+            <FluentMessageBar Title="Error" Intent="MessageIntent.Error" Style="margin-top: 0.5rem;">
+                @error
+            </FluentMessageBar>
+        }
+        <p style="font-size: 0.85rem; color: var(--neutral-foreground-hint); margin-top: 0.5rem;">Lowercase letters, numbers, and hyphens only.</p>
+    </EditForm>
+</FluentCard>
 
 @code {
     private CreateModel model = new();

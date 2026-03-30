@@ -1,66 +1,63 @@
 @page "/workspaces/{Id}"
-@rendermode InteractiveServer
 @inject WorkspaceService WorkspaceSvc
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
 <PageTitle>@(workspace?.Name ?? Id) — Workspace</PageTitle>
 
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="workspaces">Workspaces</a></li>
-        <li class="breadcrumb-item active" aria-current="page">@(workspace?.Name ?? Id)</li>
-    </ol>
-</nav>
+<FluentBreadcrumb Style="margin-bottom: 1rem;">
+    <FluentBreadcrumbItem Href="workspaces">Workspaces</FluentBreadcrumbItem>
+    <FluentBreadcrumbItem>@(workspace?.Name ?? Id)</FluentBreadcrumbItem>
+</FluentBreadcrumb>
 
 @if (!found.HasValue)
 {
-    <p class="text-muted">Loading...</p>
+    <FluentProgress />
 }
 else if (!found.Value)
 {
-    <EmptyState Title="Workspace not found" Icon="bi-exclamation-triangle">
+    <EmptyState Title="Workspace not found" Icon="@(new Icons.Regular.Size48.Warning())">
         The workspace does not exist or you don't have access.
     </EmptyState>
 }
 else
 {
-    <h1>@workspace!.Name</h1>
+    <h1 style="margin-bottom: 1.5rem;">@workspace!.Name</h1>
 
-    <div class="row g-4 mt-2">
-        <div class="col-lg-6">
-            <ConnectionInfoCard DatabaseName="@workspace.DatabaseName" CouchDbUsername="@username" />
-        </div>
-        <div class="col-lg-6">
-            <SetupUriCard Name="@workspace.Name" SetupUri="@setupUri" UriPassphrase="@uriPassphrase"
-                          OnGenerateRequested="HandleGenerateSetupUri" />
-        </div>
-    </div>
+    <FluentTabs @bind-ActiveTabId="activeTab" Style="min-height: 400px;">
+        <FluentTab Label="Setup" Id="tab-setup" Icon="@(new Icons.Regular.Size20.PlugConnected())">
+            <FluentStack Orientation="Orientation.Vertical" Wrap="true"
+                         Style="gap: 1.5rem; margin-top: 1rem; align-items: stretch;">
+                <div style="flex: 1; min-width: 300px;">
+                    <ConnectionInfoCard DatabaseName="@workspace.DatabaseName" CouchDbUsername="@username" />
+                </div>
+                <div style="flex: 1; min-width: 300px;">
+                    <SetupUriCard Name="@workspace.Name" Username="@username" Sub="@sub"
+                                  WorkspaceId="@Id" DatabaseName="@workspace.DatabaseName"
+                                  E2eePassphrase="@workspace.E2eePassphrase" />
+                </div>
+            </FluentStack>
+        </FluentTab>
 
-    <div class="card mt-4">
-        <div class="card-body">
-            <h5 class="card-title">Members</h5>
-            <MemberList Security="@workspace.Members" OnAdd="HandleAddMember" OnRemove="HandleRemoveMember"
-                        CurrentUsername="@username" />
-            @if (memberError is not null)
-            {
-                <div class="alert alert-danger mt-2" role="alert">@memberError</div>
-            }
-        </div>
-    </div>
+        <FluentTab Label="Members" Id="tab-members" Icon="@(new Icons.Regular.Size20.People())">
+            <div style="margin-top: 1rem;">
+                <MemberList WorkspaceId="@Id" CurrentUsername="@username"
+                            Security="@workspace.Members" />
+            </div>
+        </FluentTab>
 
-    <div class="card mt-4">
-        <div class="card-body">
-            <h5 class="card-title">Getting Started</h5>
-            <ol class="mb-0">
-                <li>Install the <strong>Obsidian LiveSync</strong> plugin in your vault.</li>
-                <li>Click <strong>Generate Setup URI</strong> above.</li>
-                <li>Open the plugin settings and choose <strong>Use the copied setup URI</strong>.</li>
-                <li>Copy the Setup URI above and paste it when prompted.</li>
-                <li>When asked for the <strong>Setup URI passphrase</strong>, type the passphrase shown above (do not copy it).</li>
-                <li>Your vault will begin syncing automatically.</li>
-            </ol>
-        </div>
-    </div>
+        <FluentTab Label="Getting Started" Id="tab-guide" Icon="@(new Icons.Regular.Size20.BookOpen())">
+            <div style="margin-top: 1rem; max-width: 600px;">
+                <ol style="padding-left: 1.25rem;">
+                    <li>Install the <strong>Obsidian LiveSync</strong> plugin in your vault.</li>
+                    <li>Click <strong>Generate Setup URI</strong> on the Setup tab.</li>
+                    <li>Open the plugin settings and choose <strong>Use the copied setup URI</strong>.</li>
+                    <li>Copy the Setup URI and paste it when prompted.</li>
+                    <li>When asked for the <strong>Setup URI passphrase</strong>, type the passphrase shown (do not copy it).</li>
+                    <li>Your vault will begin syncing automatically.</li>
+                </ol>
+            </div>
+        </FluentTab>
+    </FluentTabs>
 }
 
 @code {
@@ -68,13 +65,11 @@ else
 
     [CascadingParameter] private Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState> AuthStateTask { get; set; } = default!;
 
+    private string activeTab = "tab-setup";
     private bool? found;
     private WorkspaceInfo? workspace;
     private string username = "";
     private string sub = "";
-    private string? setupUri;
-    private string? uriPassphrase;
-    private string? memberError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -93,32 +88,5 @@ else
         found = true;
     }
 
-    private void HandleGenerateSetupUri()
-    {
-        var result = WorkspaceSvc.GenerateSetupUri(username, sub, Id, workspace!.DatabaseName, workspace.E2eePassphrase);
-        setupUri = result.Uri;
-        uriPassphrase = result.UriPassphrase;
-    }
 
-    private async Task HandleAddMember(string targetUsername)
-    {
-        memberError = null;
-        if (!await WorkspaceSvc.AddMemberAsync(Id, username, targetUsername))
-        {
-            memberError = $"Could not add \"{targetUsername}\". Make sure they have logged in at least once.";
-            return;
-        }
-        workspace = await WorkspaceSvc.GetAsync(Id);
-    }
-
-    private async Task HandleRemoveMember(string targetUsername)
-    {
-        memberError = null;
-        if (!await WorkspaceSvc.RemoveMemberAsync(Id, username, targetUsername))
-        {
-            memberError = $"Could not remove \"{targetUsername}\". Cannot remove the last member.";
-            return;
-        }
-        workspace = await WorkspaceSvc.GetAsync(Id);
-    }
 }

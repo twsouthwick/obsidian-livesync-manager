@@ -1,8 +1,8 @@
-<div class="qr-code-container text-center my-3 p-3 border rounded bg-white">
+<div style="text-align: center; margin: 1rem 0; padding: 1rem; border: 1px solid var(--neutral-stroke-rest); border-radius: 4px; background: white;">
     @((MarkupString)SetupUriEncryptionService.GenerateQrCodeSvg(Uri))
     @if (Caption is not null)
     {
-        <div class="form-text mt-2">@Caption</div>
+        <p style="font-size: 0.85rem; color: var(--neutral-foreground-hint); margin-top: 0.5rem;">@Caption</p>
     }
 </div>
 

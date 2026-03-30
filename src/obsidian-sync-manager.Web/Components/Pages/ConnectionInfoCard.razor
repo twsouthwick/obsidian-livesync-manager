@@ -1,14 +1,12 @@
-<div class="card h-100">
-    <div class="card-body">
-        <h5 class="card-title">Connection Info</h5>
-        <dl class="detail-list">
-            <dt>Database</dt>
-            <dd><code>@DatabaseName</code></dd>
-            <dt>CouchDB User</dt>
-            <dd><code>@CouchDbUsername</code></dd>
-        </dl>
+<FluentCard Style="padding: 1.5rem; height: 100%;">
+    <h5 style="margin-top: 0;">Connection Info</h5>
+    <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem;">
+        <FluentLabel Weight="FontWeight.Bold">Database</FluentLabel>
+        <code>@DatabaseName</code>
+        <FluentLabel Weight="FontWeight.Bold">CouchDB User</FluentLabel>
+        <code>@CouchDbUsername</code>
     </div>
-</div>
+</FluentCard>
 
 @code {
     [Parameter, EditorRequired] public string DatabaseName { get; set; } = default!;

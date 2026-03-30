@@ -1,31 +1,32 @@
-<table class="table table-hover align-middle">
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Members</th>
-            <th class="text-end">Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var workspace in Workspaces)
-        {
-            <tr>
-                <td>
-                    <a href="workspaces/@workspace.Id">@workspace.Name</a>
-                </td>
-                <td class="text-muted">@(workspace.Members.Admins.Names.Union(workspace.Members.Members.Names).Count())</td>
-                <td class="text-end">
-                    <a href="workspaces/@workspace.Id" class="btn btn-sm btn-outline-primary me-1">
-                        <span class="bi bi-gear" aria-hidden="true"></span> Details
-                    </a>
-                    <button class="btn btn-sm btn-outline-danger" @onclick="() => OnDelete.InvokeAsync(workspace)">
-                        <span class="bi bi-trash" aria-hidden="true"></span> Delete
-                    </button>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+<FluentStack Orientation="Orientation.Horizontal" Wrap="true" HorizontalGap="16" VerticalGap="16">
+    @foreach (var workspace in Workspaces)
+    {
+        <FluentCard Style="width: 280px;">
+            <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
+                <FluentAnchor Href="@($"workspaces/{workspace.Id}")" Appearance="Appearance.Hypertext"
+                              Style="font-size: 1.1rem; font-weight: 600;">
+                    @workspace.Name
+                </FluentAnchor>
+                <FluentLabel Color="Color.Neutral" Style="font-size: 0.85rem;">
+                    @(workspace.Members.Admins.Names.Union(workspace.Members.Members.Names).Count()) members
+                </FluentLabel>
+                <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="4">
+                    <FluentAnchor Appearance="Appearance.Stealth"
+                                  IconStart="@(new Icons.Regular.Size16.Settings())"
+                                  Href="@($"workspaces/{workspace.Id}")">
+                        Details
+                    </FluentAnchor>
+                    <FluentButton Appearance="Appearance.Stealth" Size="ButtonSize.Small"
+                                  IconStart="@(new Icons.Regular.Size16.Delete())"
+                                  @onclick="() => OnDelete.InvokeAsync(workspace)"
+                                  Style="color: var(--error);">
+                        Delete
+                    </FluentButton>
+                </FluentStack>
+            </FluentStack>
+        </FluentCard>
+    }
+</FluentStack>
 
 @code {
     [Parameter, EditorRequired] public List<WorkspaceInfo> Workspaces { get; set; } = default!;
