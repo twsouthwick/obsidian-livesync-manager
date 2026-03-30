@@ -81,6 +81,8 @@ public class CouchDbOptions
     [Required]
     public Uri Url { get; set; } = null!;
 
+    public Uri? ExternalUrl { get; set; }
+
     [Required]
     public string Username { get; set; } = null!;
 

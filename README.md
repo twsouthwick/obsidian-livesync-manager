@@ -24,6 +24,7 @@ ghcr.io/<owner>/obsidian-sync-manager:latest
 docker run -d \
   -p 8080:8080 \
   -e COUCHDB__URL=http://couchdb:5984 \
+  -e COUCHDB__EXTERNALURL=https://couchdb.example.com \
   -e COUCHDB__USERNAME=admin \
   -e COUCHDB__PASSWORD=secret \
   -e COUCHDB__USERSECRET=change-me \
@@ -54,6 +55,7 @@ services:
       - "8080:8080"
     environment:
       COUCHDB__URL: http://couchdb:5984
+      COUCHDB__EXTERNALURL: https://couchdb.example.com
       COUCHDB__USERNAME: admin
       COUCHDB__PASSWORD: secret
       COUCHDB__USERSECRET: change-me
@@ -76,12 +78,13 @@ All configuration uses the `__` (double-underscore) separator for nested keys.
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `COUCHDB__URL` | Base URL of the CouchDB HTTP API | `http://couchdb:5984` |
+| `COUCHDB__URL` | Base URL of the CouchDB HTTP API (used for server-to-CouchDB communication) | `http://couchdb:5984` |
+| `COUCHDB__EXTERNALURL` | Public URL of CouchDB reachable by Obsidian clients. Falls back to `COUCHDB__URL` if not set | `https://couchdb.example.com` |
 | `COUCHDB__USERNAME` | Admin username | `admin` |
 | `COUCHDB__PASSWORD` | Admin password | `secret` |
 | `COUCHDB__USERSECRET` | Secret used to derive per-user CouchDB passwords from OIDC `sub` claims | `change-me` |
 
-All four variables are **required**. On startup the app automatically initializes CouchDB (single-node setup, CORS for Obsidian LiveSync clients, authentication enforcement, and size limits). See [DEVELOPER.md](DEVELOPER.md) for details.
+`COUCHDB__URL`, `COUCHDB__USERNAME`, `COUCHDB__PASSWORD`, and `COUCHDB__USERSECRET` are **required**. `COUCHDB__EXTERNALURL` is optional — set it when CouchDB is behind a reverse proxy or on a different public hostname than the internal URL. On startup the app automatically initializes CouchDB (single-node setup, CORS for Obsidian LiveSync clients, authentication enforcement, and size limits). See [DEVELOPER.md](DEVELOPER.md) for details.
 
 ### OIDC
 

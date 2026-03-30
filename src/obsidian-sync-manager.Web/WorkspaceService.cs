@@ -158,7 +158,7 @@ var securityRecord = new CouchDbSecurityRecord(
     public EncryptedSetupUri GenerateSetupUri(string username, string sub, string workspaceId, string databaseName, string e2eePassphrase)
     {
         var password = userSecretProvider.DeriveUserPassword(sub);
-        var couchDbUrl = couchDbOptions.Value.Url;
+        var couchDbUrl = couchDbOptions.Value.ExternalUrl ?? couchDbOptions.Value.Url;
 
         var settings = JsonSerializer.Serialize(new
         {
