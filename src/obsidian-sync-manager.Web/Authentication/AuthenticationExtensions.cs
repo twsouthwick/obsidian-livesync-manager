@@ -91,7 +91,7 @@ public static class AuthenticationExtensions
             app.MapPost("/logout", async (HttpContext context) =>
             {
                 var idToken = await context.GetTokenAsync("id_token");
-                var properties = new AuthenticationProperties { RedirectUri = "/" };
+                var properties = new AuthenticationProperties { RedirectUri = "/Account/SignedOut" };
                 if (idToken is not null)
                     properties.SetParameter("id_token_hint", idToken);
 
@@ -104,8 +104,8 @@ public static class AuthenticationExtensions
                 catch (InvalidOperationException)
                 {
                     // OIDC provider may not expose an end_session_endpoint.
-                    // Cookie is already cleared; redirect home.
-                    context.Response.Redirect("/");
+                    // Cookie is already cleared; land on anonymous page to avoid SSO re-auth loop.
+                    context.Response.Redirect("/Account/SignedOut");
                 }
             }).RequireAuthorization();
         }

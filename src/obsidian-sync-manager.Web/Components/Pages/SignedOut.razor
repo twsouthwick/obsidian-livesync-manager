@@ -1,0 +1,15 @@
+@page "/Account/SignedOut"
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@layout Swick.Obsidian.SyncManager.Web.Components.Layout.EmptyLayout
+
+<PageTitle>Signed Out</PageTitle>
+
+<FluentStack Orientation="Orientation.Vertical" HorizontalAlignment="HorizontalAlignment.Center"
+             Style="margin-top: 20vh; text-align: center;">
+    <FluentIcon Value="@(new Icons.Regular.Size48.Checkmark())" Color="Color.Success" />
+    <h1>Signed Out</h1>
+    <p style="max-width: 480px;">You have been signed out successfully.</p>
+    <FluentAnchor Href="/login" Appearance="Appearance.Accent">
+        Sign in again
+    </FluentAnchor>
+</FluentStack>
