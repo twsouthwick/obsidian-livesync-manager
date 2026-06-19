@@ -44,6 +44,11 @@ public static class AuthenticationExtensions
                         var groups = ctx.Principal?.FindAll(roleClaim).Select(c => c.Value) ?? [];
                         logger.LogInformation("User {Username} authenticated. Groups: [{Groups}]",
                             username, string.Join(", ", groups));
+
+                        var allClaims = ctx.Principal?.Claims.Select(c => $"{c.Type}={c.Value}") ?? [];
+                        logger.LogInformation("User {Username} token claims: {Claims}",
+                            username, string.Join(", ", allClaims));
+
                         return Task.CompletedTask;
                     };
 
