@@ -76,7 +76,7 @@ public sealed partial class WorkspaceService(
 
         var securityRecord = new CouchDbSecurityRecord(
                     new UserRecord([username], []),
-                    new UserRecord([], [])
+                    new UserRecord([username], [])
                 );
         await db.Security.SetAsync(securityRecord, cancellationToken);
 
@@ -93,7 +93,7 @@ public sealed partial class WorkspaceService(
         };
         await Registry.PutAsync(doc.Id, doc, cancellationToken);
 
-        return (true, new WorkspaceInfo(workspaceId, name, dbName, securityRecord, doc.Passphrase));
+        return (true, new WorkspaceInfo(workspaceId, name, dbName, securityRecord, e2eePassphrase));
     }
 
     public async Task<bool> DeleteAsync(string workspaceId, string username, CancellationToken cancellationToken = default)
@@ -166,7 +166,7 @@ public sealed partial class WorkspaceService(
             Admins = securityRecord.Admins with { Names = securityRecord.Admins.Names.Remove(targetUsername) }
         };
 
-        if (securityRecord.Admins.Names.Count == 0)
+        if (updatedSecurityRecord.Admins.Names.Count == 0)
             return false; // can't remove last admin
 
         await db.Security.SetAsync(updatedSecurityRecord, cancellationToken);

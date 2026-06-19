@@ -73,6 +73,26 @@ public static class CouchDbExtensions
         public Task StartAsync(CancellationToken cancellationToken) => InitializeAsync(cancellationToken);
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
+        private async Task MigrateWorkspaceSecurityAsync(CancellationToken cancellationToken)
+        {
+            var databases = await couchDbAdminClient.ListDatabasesAsync(cancellationToken);
+            foreach (var dbName in databases.Where(d => d.StartsWith("livesync-", StringComparison.Ordinal)))
+            {
+                var db = couchDbAdminClient.Database(dbName);
+                var security = await db.Security.GetAsync(cancellationToken);
+
+                if (security.Members.Names.Count == 0 && security.Admins.Names.Count > 0)
+                {
+                    logger.LogInformation("Migrating security for {Database}: copying admins to members.", dbName);
+                    var updated = security with
+                    {
+                        Members = security.Members with { Names = security.Admins.Names }
+                    };
+                    await db.Security.SetAsync(updated, cancellationToken);
+                }
+            }
+        }
+
         private async Task InitializeAsync(CancellationToken cancellationToken)
         {
             const int maxRetries = 10;
@@ -86,6 +106,7 @@ public static class CouchDbExtensions
                     await couchDbAdminClient.InitializeAsync(cancellationToken);
                     await couchDbAdminClient.Database("workspace-registry").CreateIfNotExistsAsync(cancellationToken);
                     await hmacSecretProvider.InitializeAsync(cancellationToken);
+                    await MigrateWorkspaceSecurityAsync(cancellationToken);
                     logger.LogInformation("CouchDB initialized successfully.");
                     return;
                 }
