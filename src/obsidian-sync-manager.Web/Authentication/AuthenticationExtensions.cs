@@ -28,7 +28,8 @@ public static class AuthenticationExtensions
                 options.ResponseType = OpenIdConnectResponseType.Code;
                 options.MapInboundClaims = false;
                 options.SaveTokens = true;
-                options.TokenValidationParameters.RoleClaimType = "groups";
+                options.TokenValidationParameters.RoleClaimType =
+                    builder.Configuration["OIDC:RoleClaimType"] ?? "groups";
             });
 
             builder.Services.AddOptions<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme)
@@ -39,7 +40,8 @@ public static class AuthenticationExtensions
                     options.Events.OnTokenValidated = ctx =>
                     {
                         var username = ctx.Principal?.FindFirst("preferred_username")?.Value ?? "(unknown)";
-                        var groups = ctx.Principal?.FindAll("groups").Select(c => c.Value) ?? [];
+                        var roleClaim = ctx.Options.TokenValidationParameters.RoleClaimType;
+                        var groups = ctx.Principal?.FindAll(roleClaim).Select(c => c.Value) ?? [];
                         logger.LogInformation("User {Username} authenticated. Groups: [{Groups}]",
                             username, string.Join(", ", groups));
                         return Task.CompletedTask;
