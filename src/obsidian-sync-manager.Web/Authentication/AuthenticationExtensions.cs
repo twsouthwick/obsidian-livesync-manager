@@ -31,6 +31,35 @@ public static class AuthenticationExtensions
                 options.TokenValidationParameters.RoleClaimType = "groups";
             });
 
+            builder.Services.AddOptions<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme)
+                .PostConfigure<ILoggerFactory>((options, loggerFactory) =>
+                {
+                    var logger = loggerFactory.CreateLogger("Swick.Obsidian.SyncManager.Web.Authentication");
+
+                    options.Events.OnTokenValidated = ctx =>
+                    {
+                        var username = ctx.Principal?.FindFirst("preferred_username")?.Value ?? "(unknown)";
+                        var groups = ctx.Principal?.FindAll("groups").Select(c => c.Value) ?? [];
+                        logger.LogInformation("User {Username} authenticated. Groups: [{Groups}]",
+                            username, string.Join(", ", groups));
+                        return Task.CompletedTask;
+                    };
+
+                    options.Events.OnAuthenticationFailed = ctx =>
+                    {
+                        logger.LogError(ctx.Exception, "OIDC authentication failed");
+                        return Task.CompletedTask;
+                    };
+
+                    options.Events.OnRemoteFailure = ctx =>
+                    {
+                        logger.LogError(ctx.Failure, "OIDC remote failure: {Error}", ctx.Failure?.Message);
+                        ctx.HandleResponse();
+                        ctx.Response.Redirect("/");
+                        return Task.CompletedTask;
+                    };
+                });
+
             builder.Services.AddCascadingAuthenticationState();
 
             builder.Services.AddOptions<OidcGroupOptions>()

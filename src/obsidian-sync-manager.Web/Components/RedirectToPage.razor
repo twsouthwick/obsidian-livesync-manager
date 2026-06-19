@@ -1,0 +1,11 @@
+@inject NavigationManager Navigation
+
+@code {
+    [Parameter, EditorRequired]
+    public required string Page { get; set; }
+
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo(Page, forceLoad: true);
+    }
+}
