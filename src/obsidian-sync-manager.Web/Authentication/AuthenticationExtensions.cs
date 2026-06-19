@@ -30,6 +30,7 @@ public static class AuthenticationExtensions
                 options.SaveTokens = true;
                 options.TokenValidationParameters.RoleClaimType =
                     builder.Configuration["OIDC:RoleClaimType"] ?? "groups";
+                options.Scope.Add(options.TokenValidationParameters.RoleClaimType);
             });
 
             builder.Services.AddOptions<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme)
@@ -45,9 +46,11 @@ public static class AuthenticationExtensions
                         logger.LogInformation("User {Username} authenticated. Groups: [{Groups}]",
                             username, string.Join(", ", groups));
 
-                        var allClaims = ctx.Principal?.Claims.Select(c => $"{c.Type}={c.Value}") ?? [];
-                        logger.LogInformation("User {Username} token claims: {Claims}",
-                            username, string.Join(", ", allClaims));
+                        var allClaims = ctx.Principal?.Claims
+                            .Where(c => c.Type == roleClaim)
+                            .Select(c => c.Value) ?? [];
+                        logger.LogDebug("User {Username} {RoleClaim} claims: [{Claims}]",
+                            username, roleClaim, string.Join(", ", allClaims));
 
                         return Task.CompletedTask;
                     };
